@@ -65,3 +65,14 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 .paper-shell .paper-month .dayname{background:rgba(255,255,250,.70);color:#29352e;text-shadow:0 1px 1px #fff}
 .paper-shell .paper-month .num{display:inline-block;padding:2px 5px;border-radius:4px;background:rgba(255,255,250,.78);color:#29352e}
 @media(max-width:650px){.paper-shell .calendar-head h2{padding:4px 8px}.paper-shell .source-legend{padding:6px 8px}}
+
+/* Day and week use the same transparent grid and continuous image fade as month. */
+.paper-shell .calendar-paper .agenda-scroll{position:relative;background:transparent}
+.paper-shell .calendar-paper .agenda-grid{position:relative;background:transparent}
+.paper-shell .calendar-paper .agenda-heading{background:rgba(255,255,250,.55);color:#29352e}
+.paper-shell .calendar-paper .agenda-date,.paper-shell .calendar-paper .agenda-cell{background:transparent;color:#29352e}
+.paper-shell .calendar-paper .agenda-date{font-weight:500}
+.paper-shell .calendar-paper .agenda-cell .event-click{background:#f0f1ed}
+.paper-shell .calendar-paper .agenda-date::first-line{background:rgba(255,255,250,.72)}
+.paper-shell .important-bottom{position:relative;z-index:3;background:linear-gradient(to bottom,rgba(255,255,251,.3),rgba(255,255,251,.92) 240px,#fffffb 420px);border-radius:0 0 8px 8px}
+.paper-shell .important-bottom h3{display:inline-block;padding:5px 10px;border-radius:8px;background:linear-gradient(90deg,rgba(255,255,250,.85),rgba(255,255,250,.35))}

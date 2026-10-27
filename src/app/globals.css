@@ -40,21 +40,19 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 @media(max-width:650px){.paper-month .cell{min-height:110px}.event-extra{font-size:10px}}
 
 
-/* Photo and calendar form one continuous layered composition.
-   The calendar begins at the same offset, regardless of image proportions. */
+/* Unified photo/calendar composition: clear header; long continuous fade through day grid. */
 .paper-shell{--calendar-start:420px;position:relative;isolation:isolate}
 .paper-shell .paper-photo{position:relative;height:var(--calendar-start);min-height:0;max-height:none;overflow:visible;background:transparent;border-radius:8px 8px 0 0}
-.paper-shell .paper-photo .full-photo{position:absolute;inset:0 auto auto 0;width:100%;height:calc(var(--calendar-start) + 390px);min-height:0;max-width:100%;display:block;object-fit:cover;object-position:center top;z-index:0;
-  -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 42%,rgba(0,0,0,.94) 52%,rgba(0,0,0,.72) 65%,rgba(0,0,0,.35) 82%,transparent 100%);
-  mask-image:linear-gradient(to bottom,#000 0%,#000 42%,rgba(0,0,0,.94) 52%,rgba(0,0,0,.72) 65%,rgba(0,0,0,.35) 82%,transparent 100%)}
+.paper-shell .paper-photo .full-photo{position:absolute;top:0;left:0;width:100%;height:calc(var(--calendar-start) + 760px);max-width:100%;display:block;object-fit:cover;object-position:center top;z-index:0;
+-webkit-mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 170px),rgba(0,0,0,.86) calc(var(--calendar-start) + 290px),rgba(0,0,0,.54) calc(var(--calendar-start) + 440px),rgba(0,0,0,.2) calc(var(--calendar-start) + 600px),transparent calc(var(--calendar-start) + 750px));
+mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 170px),rgba(0,0,0,.86) calc(var(--calendar-start) + 290px),rgba(0,0,0,.54) calc(var(--calendar-start) + 440px),rgba(0,0,0,.2) calc(var(--calendar-start) + 600px),transparent calc(var(--calendar-start) + 750px))}
 .paper-shell .paper-photo::after{display:none}
 .paper-shell .photo-shade{position:absolute;top:0;right:0;bottom:auto;left:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-start;padding:26px 34px;background:linear-gradient(to bottom,rgba(17,28,22,.45),transparent);pointer-events:none}
-.paper-shell .calendar-paper{position:relative;z-index:3;margin-top:0;padding:24px 30px 30px;border-radius:8px;background:linear-gradient(to bottom,rgba(255,255,251,.25) 0px,rgba(255,255,251,.42) 110px,rgba(255,255,251,.73) 230px,rgba(255,255,251,.96) 365px,#fffffb 410px);box-shadow:none;backdrop-filter:none}
-.paper-shell .calendar-paper .paper-month .cell{background:rgba(255,255,251,.62)}
-.paper-shell .calendar-paper .paper-month .dayname{background:rgba(242,242,236,.7)}
-@media(max-width:650px){
- .paper-shell{--calendar-start:280px}
- .paper-shell .paper-photo .full-photo{height:calc(var(--calendar-start) + 300px)}
- .paper-shell .photo-shade{padding:16px}
- .paper-shell .calendar-paper{padding:14px 10px;background:linear-gradient(to bottom,rgba(255,255,251,.32),rgba(255,255,251,.73) 160px,#fffffb 310px)}
-}
+.paper-shell .calendar-paper{position:relative;z-index:3;margin-top:0;padding:24px 30px 30px;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;isolation:isolate}
+.paper-shell .calendar-paper::before{content:"";position:absolute;z-index:-1;pointer-events:none;inset:160px 0 0;background:linear-gradient(to bottom,rgba(255,255,251,0) 0px,rgba(255,255,251,.10) 120px,rgba(255,255,251,.4) 290px,rgba(255,255,251,.8) 460px,#fffffb 620px)}
+.paper-shell .calendar-head,.paper-shell .source-legend{background:transparent}
+.paper-shell .calendar-paper .paper-month .cell{background:transparent}
+.paper-shell .calendar-paper .paper-month .dayname{background:rgba(242,242,236,.35)}
+.paper-shell .calendar-paper .event-click{background:#f0f1ed}
+.paper-shell .calendar-paper .agenda-heading,.paper-shell .calendar-paper .agenda-date,.paper-shell .calendar-paper .agenda-cell{background:rgba(255,255,251,.8)}
+@media(max-width:650px){.paper-shell{--calendar-start:280px}.paper-shell .photo-shade{padding:16px}.paper-shell .calendar-paper{padding:14px 10px}.paper-shell .calendar-paper::before{top:145px}.paper-shell .paper-photo .full-photo{height:calc(var(--calendar-start) + 760px)}}

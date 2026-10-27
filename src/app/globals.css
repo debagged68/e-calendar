@@ -38,3 +38,17 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 .event-extra{display:block;font-weight:400;font-size:11px;line-height:1.35;margin-top:3px;color:#536157}
 .agenda-cell .event-click{font-size:13px}
 @media(max-width:650px){.paper-month .cell{min-height:110px}.event-extra{font-size:10px}}
+
+/* Approved layout: image keeps full natural height, calendar always starts at fixed position */
+.paper-shell{--calendar-start:420px;position:relative}
+.paper-photo{position:relative;width:100%;height:auto;min-height:var(--calendar-start);background:#f9f9f4;border-radius:8px 8px 0 0;overflow:visible}
+.full-photo{display:block;width:100%;height:auto;max-width:100%;object-fit:contain;object-position:top center}
+.paper-photo::after{content:"";position:absolute;z-index:1;top:calc(var(--calendar-start) - 140px);bottom:0;left:0;right:0;background:linear-gradient(to bottom,rgba(249,249,244,0),rgba(249,249,244,.85) 135px,#f9f9f4 230px);pointer-events:none}
+.photo-shade{z-index:2;position:absolute;top:0;left:0;right:0;bottom:auto;padding:26px 34px;background:linear-gradient(to bottom,rgba(17,28,22,.45),transparent);pointer-events:none}
+.calendar-paper{position:relative;z-index:3;margin-top:calc(-1 * max(0px, 100% - var(--calendar-start)));background:#fffffb;box-shadow:0 12px 32px #00000012}
+.paper-photo:has(.full-photo) + .error + .calendar-paper{margin-top:0}
+.paper-shell:has(.full-photo) .calendar-paper{margin-top:0}
+.paper-shell:has(.full-photo) .paper-photo{max-height:var(--calendar-start);overflow:hidden}
+.paper-shell:has(.full-photo) .full-photo{width:100%;height:auto}
+.paper-shell:has(.full-photo) .paper-photo::after{top:calc(var(--calendar-start) - 160px);bottom:0}
+@media(max-width:650px){.paper-shell{--calendar-start:280px}.photo-shade{padding:16px}.paper-photo::after,.paper-shell:has(.full-photo) .paper-photo::after{top:calc(var(--calendar-start) - 105px)}}

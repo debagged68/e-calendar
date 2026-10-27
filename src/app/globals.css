@@ -108,3 +108,20 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 .fit-screen .important-bottom h3{font-size:15px;margin:0 0 4px}
 .fit-screen .important-item{min-width:0;padding:3px 8px;font-size:11px}
 }
+
+/* Photograph-first fit mode: one continuous full-height picture behind all views. */
+@media(min-width:851px){
+.paper-shell.fit-screen{--calendar-start:0px;position:relative;isolation:isolate;background:transparent}
+.paper-shell.fit-screen .paper-photo{position:absolute;inset:0;z-index:-1;height:100%;width:100%;overflow:hidden;border-radius:0;pointer-events:none}
+.paper-shell.fit-screen .paper-photo .full-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;max-width:none;-webkit-mask-image:none;mask-image:none}
+.paper-shell.fit-screen .paper-photo .photo-shade{display:none}
+.paper-shell.fit-screen .topbar{z-index:2;position:relative;padding:3px 8px;background:rgba(255,255,250,.72);border-radius:8px}
+.paper-shell.fit-screen .calendar-paper{z-index:2;background:transparent;isolation:isolate}
+.paper-shell.fit-screen .calendar-paper::before{inset:0;background:linear-gradient(to bottom,rgba(255,255,251,.12) 0%,rgba(255,255,251,.20) 45%,rgba(255,255,251,.38) 100%);border-radius:8px}
+.paper-shell.fit-screen .calendar-paper .paper-month .cell{background:rgba(255,255,251,.09)}
+.paper-shell.fit-screen .calendar-paper .paper-month .dayname{background:rgba(255,255,251,.82)!important}
+.paper-shell.fit-screen .calendar-paper .agenda-heading{background:rgba(255,255,251,.75)}
+.paper-shell.fit-screen .calendar-paper .agenda-cell,.paper-shell.fit-screen .calendar-paper .agenda-date{background:rgba(255,255,251,.12)}
+.paper-shell.fit-screen .calendar-paper .event-click{background:rgba(248,248,244,.94)}
+.paper-shell.fit-screen .important-bottom{z-index:2;background:rgba(255,255,251,.65)}
+}

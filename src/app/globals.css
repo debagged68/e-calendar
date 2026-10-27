@@ -39,27 +39,22 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 .agenda-cell .event-click{font-size:13px}
 @media(max-width:650px){.paper-month .cell{min-height:110px}.event-extra{font-size:10px}}
 
-/* Approved layout: image keeps full natural height, calendar always starts at fixed position */
-.paper-shell{--calendar-start:420px;position:relative}
-.paper-photo{position:relative;width:100%;height:auto;min-height:var(--calendar-start);background:#f9f9f4;border-radius:8px 8px 0 0;overflow:visible}
-.full-photo{display:block;width:100%;height:auto;max-width:100%;object-fit:contain;object-position:top center}
-.paper-photo::after{content:"";position:absolute;z-index:1;top:calc(var(--calendar-start) - 140px);bottom:0;left:0;right:0;background:linear-gradient(to bottom,rgba(249,249,244,0),rgba(249,249,244,.85) 135px,#f9f9f4 230px);pointer-events:none}
-.photo-shade{z-index:2;position:absolute;top:0;left:0;right:0;bottom:auto;padding:26px 34px;background:linear-gradient(to bottom,rgba(17,28,22,.45),transparent);pointer-events:none}
-.calendar-paper{position:relative;z-index:3;margin-top:calc(-1 * max(0px, 100% - var(--calendar-start)));background:#fffffb;box-shadow:0 12px 32px #00000012}
-.paper-photo:has(.full-photo) + .error + .calendar-paper{margin-top:0}
-.paper-shell:has(.full-photo) .calendar-paper{margin-top:0}
-.paper-shell:has(.full-photo) .paper-photo{max-height:var(--calendar-start);overflow:hidden}
-.paper-shell:has(.full-photo) .full-photo{width:100%;height:auto}
-.paper-shell:has(.full-photo) .paper-photo::after{top:calc(var(--calendar-start) - 160px);bottom:0}
-@media(max-width:650px){.paper-shell{--calendar-start:280px}.photo-shade{padding:16px}.paper-photo::after,.paper-shell:has(.full-photo) .paper-photo::after{top:calc(var(--calendar-start) - 105px)}}
 
-/* Corrected continuous image-to-calendar blend: no hard boundary */
-.paper-shell{--calendar-start:420px;isolation:isolate}
-.paper-photo,.paper-shell:has(.full-photo) .paper-photo{height:var(--calendar-start);min-height:var(--calendar-start);max-height:none;overflow:visible;position:relative;background:transparent}
-.paper-photo .full-photo,.paper-shell:has(.full-photo) .full-photo{position:absolute;top:0;left:0;display:block;width:100%;height:auto;max-width:100%;object-fit:contain;z-index:0;-webkit-mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 140px),rgba(0,0,0,.8) var(--calendar-start),rgba(0,0,0,.35) calc(var(--calendar-start) + 150px),transparent calc(var(--calendar-start) + 360px));mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 140px),rgba(0,0,0,.8) var(--calendar-start),rgba(0,0,0,.35) calc(var(--calendar-start) + 150px),transparent calc(var(--calendar-start) + 360px))}
-.paper-photo::after,.paper-shell:has(.full-photo) .paper-photo::after{display:none}
-.paper-shell .calendar-paper,.paper-shell:has(.full-photo) .calendar-paper{margin-top:0;position:relative;z-index:3;background:linear-gradient(to bottom,rgba(255,255,251,.24) 0px,rgba(255,255,251,.64) 115px,rgba(255,255,251,.93) 260px,#fffffb 370px);box-shadow:none}
-.paper-shell .calendar-head,.paper-shell .source-legend{position:relative;z-index:4}
-.paper-shell .calendar-paper .cell{background:rgba(255,255,251,.65)}
-.paper-shell .calendar-paper .dayname{background:rgba(242,242,236,.7)}
-@media(max-width:650px){.paper-shell{--calendar-start:280px}.paper-photo .full-photo,.paper-shell:has(.full-photo) .full-photo{-webkit-mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 90px),rgba(0,0,0,.75) var(--calendar-start),transparent calc(var(--calendar-start) + 270px));mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 90px),rgba(0,0,0,.75) var(--calendar-start),transparent calc(var(--calendar-start) + 270px))}}
+/* Photo and calendar form one continuous layered composition.
+   The calendar begins at the same offset, regardless of image proportions. */
+.paper-shell{--calendar-start:420px;position:relative;isolation:isolate}
+.paper-shell .paper-photo{position:relative;height:var(--calendar-start);min-height:0;max-height:none;overflow:visible;background:transparent;border-radius:8px 8px 0 0}
+.paper-shell .paper-photo .full-photo{position:absolute;inset:0 auto auto 0;width:100%;height:calc(var(--calendar-start) + 390px);min-height:0;max-width:100%;display:block;object-fit:cover;object-position:center top;z-index:0;
+  -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 42%,rgba(0,0,0,.94) 52%,rgba(0,0,0,.72) 65%,rgba(0,0,0,.35) 82%,transparent 100%);
+  mask-image:linear-gradient(to bottom,#000 0%,#000 42%,rgba(0,0,0,.94) 52%,rgba(0,0,0,.72) 65%,rgba(0,0,0,.35) 82%,transparent 100%)}
+.paper-shell .paper-photo::after{display:none}
+.paper-shell .photo-shade{position:absolute;top:0;right:0;bottom:auto;left:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-start;padding:26px 34px;background:linear-gradient(to bottom,rgba(17,28,22,.45),transparent);pointer-events:none}
+.paper-shell .calendar-paper{position:relative;z-index:3;margin-top:0;padding:24px 30px 30px;border-radius:8px;background:linear-gradient(to bottom,rgba(255,255,251,.25) 0px,rgba(255,255,251,.42) 110px,rgba(255,255,251,.73) 230px,rgba(255,255,251,.96) 365px,#fffffb 410px);box-shadow:none;backdrop-filter:none}
+.paper-shell .calendar-paper .paper-month .cell{background:rgba(255,255,251,.62)}
+.paper-shell .calendar-paper .paper-month .dayname{background:rgba(242,242,236,.7)}
+@media(max-width:650px){
+ .paper-shell{--calendar-start:280px}
+ .paper-shell .paper-photo .full-photo{height:calc(var(--calendar-start) + 300px)}
+ .paper-shell .photo-shade{padding:16px}
+ .paper-shell .calendar-paper{padding:14px 10px;background:linear-gradient(to bottom,rgba(255,255,251,.32),rgba(255,255,251,.73) 160px,#fffffb 310px)}
+}

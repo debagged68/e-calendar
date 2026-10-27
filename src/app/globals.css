@@ -83,3 +83,6 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 .paper-shell .calendar-paper .source-legend .filter{color:#20352e!important;font-weight:600;text-shadow:none}
 .paper-shell .calendar-paper .source-legend .dot{flex-shrink:0}
 @media(max-width:650px){.paper-shell .calendar-paper .calendar-head h2{padding:4px 9px}.paper-shell .calendar-paper .source-legend{gap:6px 10px;padding:7px 9px}}
+
+/* Weekday strip: readable solid pale paper over detailed photographs. */
+.paper-shell .calendar-paper .paper-month .dayname{background:rgba(255,255,250,.93)!important;color:#20352e!important;text-shadow:none!important;font-weight:700;letter-spacing:.10em}

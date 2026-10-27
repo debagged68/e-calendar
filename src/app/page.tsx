@@ -34,7 +34,7 @@ export default function Page(){
  const ordered=['family',...calendars.map(c=>c.id)]; const details=(e:Event)=>setSelected(e);
  return <main className="shell paper-shell">
  <div className="topbar"><div className="brand">OUR FAMILY <span>calendar</span></div><div className="controls"><button className="primary" onClick={()=>setEventOpen(true)}>＋ Add family event</button><button onClick={()=>setSettingsOpen(true)}>⚙ Settings</button><button onClick={()=>void supabase.auth.signOut()}>Sign out</button></div></div>
- <div className="paper-photo" style={photo?{backgroundImage:'url("'+photo+'")'}:{}}><div className="photo-shade"><span>THE DAYS WE SHARE</span><h1>Our Family Calendar</h1></div></div>
+ <div className="paper-photo">{photo&&<img className="full-photo" src={photo} alt="Family calendar photograph"/>}<div className="photo-shade"><span>THE DAYS WE SHARE</span><h1>Our Family Calendar</h1></div></div>
  {dataError&&<p role="alert" className="error">{dataError}</p>}
  <section className="calendar-paper">
  <div className="calendar-head"><div className="controls"><button onClick={()=>shift(-1)} aria-label="Previous">‹</button><button onClick={()=>setDate(new Date())}>Today</button><button onClick={()=>shift(1)} aria-label="Next">›</button><h2>{date.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</h2></div><div className="controls">{(['day','week','month'] as const).map(v=><button key={v} className={view===v?'active':''} onClick={()=>setView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div></div>

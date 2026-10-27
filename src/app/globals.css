@@ -56,3 +56,12 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 .paper-shell .calendar-paper .event-click{background:#f0f1ed}
 .paper-shell .calendar-paper .agenda-heading,.paper-shell .calendar-paper .agenda-date,.paper-shell .calendar-paper .agenda-cell{background:rgba(255,255,251,.8)}
 @media(max-width:650px){.paper-shell{--calendar-start:280px}.paper-shell .photo-shade{padding:16px}.paper-shell .calendar-paper{padding:14px 10px}.paper-shell .calendar-paper::before{top:145px}.paper-shell .paper-photo .full-photo{height:calc(var(--calendar-start) + 760px)}}
+
+/* Localised translucent reading surfaces, leaving the photograph uncovered elsewhere. */
+.paper-shell .calendar-head{width:fit-content;max-width:100%;padding:7px 12px;margin:-7px -12px 0;border-radius:12px;background:linear-gradient(90deg,rgba(255,255,250,.83),rgba(255,255,250,.58) 78%,rgba(255,255,250,0));}
+.paper-shell .calendar-head:has(.controls){width:100%;background:none;padding:0;margin:0}
+.paper-shell .calendar-head h2{display:inline-block;padding:5px 14px;border-radius:10px;background:linear-gradient(90deg,rgba(255,255,250,.85),rgba(255,255,250,.64) 75%,rgba(255,255,250,.12));text-shadow:0 1px 1px #ffffff88}
+.paper-shell .source-legend{width:fit-content;max-width:100%;padding:7px 12px 12px;margin:12px 0 14px;border-bottom:0;border-radius:9px;background:linear-gradient(90deg,rgba(255,255,250,.83),rgba(255,255,250,.57) 82%,transparent)}
+.paper-shell .paper-month .dayname{background:rgba(255,255,250,.70);color:#29352e;text-shadow:0 1px 1px #fff}
+.paper-shell .paper-month .num{display:inline-block;padding:2px 5px;border-radius:4px;background:rgba(255,255,250,.78);color:#29352e}
+@media(max-width:650px){.paper-shell .calendar-head h2{padding:4px 8px}.paper-shell .source-legend{padding:6px 8px}}

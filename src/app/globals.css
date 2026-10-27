@@ -76,3 +76,10 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 .paper-shell .calendar-paper .agenda-date::first-line{background:rgba(255,255,250,.72)}
 .paper-shell .important-bottom{position:relative;z-index:3;background:linear-gradient(to bottom,rgba(255,255,251,.3),rgba(255,255,251,.92) 240px,#fffffb 420px);border-radius:0 0 8px 8px}
 .paper-shell .important-bottom h3{display:inline-block;padding:5px 10px;border-radius:8px;background:linear-gradient(90deg,rgba(255,255,250,.85),rgba(255,255,250,.35))}
+
+/* Contrast fix: explicit compact reading backgrounds for month title and calendar filter labels. */
+.paper-shell .calendar-paper .calendar-head h2{color:#20352e!important;background:linear-gradient(90deg,rgba(255,255,250,.94),rgba(255,255,250,.82) 85%,rgba(255,255,250,.38))!important;border-radius:10px;padding:5px 14px;text-shadow:none}
+.paper-shell .calendar-paper .source-legend{display:flex;width:max-content;max-width:100%;background:linear-gradient(90deg,rgba(255,255,250,.95),rgba(255,255,250,.85) 88%,rgba(255,255,250,.45))!important;border-radius:9px;padding:9px 12px 12px;margin:12px 0 14px;gap:8px 20px}
+.paper-shell .calendar-paper .source-legend .filter{color:#20352e!important;font-weight:600;text-shadow:none}
+.paper-shell .calendar-paper .source-legend .dot{flex-shrink:0}
+@media(max-width:650px){.paper-shell .calendar-paper .calendar-head h2{padding:4px 9px}.paper-shell .calendar-paper .source-legend{gap:6px 10px;padding:7px 9px}}

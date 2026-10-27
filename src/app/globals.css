@@ -86,3 +86,25 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 
 /* Weekday strip: readable solid pale paper over detailed photographs. */
 .paper-shell .calendar-paper .paper-month .dayname{background:rgba(255,255,250,.93)!important;color:#20352e!important;text-shadow:none!important;font-weight:700;letter-spacing:.10em}
+
+@media(min-width:851px){
+.paper-shell.fit-screen{height:100dvh;overflow:hidden;display:flex;flex-direction:column;padding:8px 22px;--calendar-start:clamp(100px,18dvh,210px)}
+.fit-screen .topbar{flex-shrink:0;margin-bottom:5px}
+.fit-screen .paper-photo{flex:0 0 var(--calendar-start)}
+.fit-screen .photo-shade{padding:10px 20px}
+.fit-screen .photo-shade h1{font-size:32px}
+.fit-screen .calendar-paper{flex:1;min-height:0;display:flex;flex-direction:column;padding:8px 18px 0}
+.fit-screen .calendar-head{flex-shrink:0}
+.fit-screen .calendar-head h2{font-size:27px}
+.fit-screen .source-legend{flex-shrink:0;margin:5px 0;padding:6px}
+.fit-screen .paper-month{flex:1;min-height:0;grid-template-rows:25px repeat(6,minmax(0,1fr))}
+.fit-screen .paper-month .cell{min-height:0;overflow:auto;padding:3px}
+.fit-screen .paper-month .dayname{padding:4px}
+.fit-screen .event-click{font-size:11px;padding:3px;margin:2px 0}
+.fit-screen .agenda-scroll{flex:1;min-height:0;overflow:auto}
+.fit-screen .agenda-grid{min-height:100%;grid-auto-rows:minmax(0,1fr)}
+.fit-screen .agenda-cell,.fit-screen .agenda-date{min-height:0;padding:6px}
+.fit-screen .important-bottom{flex-shrink:0;max-height:70px;overflow:auto;padding:4px 18px;background:rgba(255,255,251,.92)}
+.fit-screen .important-bottom h3{font-size:15px;margin:0 0 4px}
+.fit-screen .important-item{min-width:0;padding:3px 8px;font-size:11px}
+}

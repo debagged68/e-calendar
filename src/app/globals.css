@@ -30,3 +30,11 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 .photo-shade h1{font-size:clamp(28px,3vw,48px)}
 .calendar-paper{position:relative;z-index:2;margin-top:-115px;background:linear-gradient(to bottom,rgba(249,249,244,.83),rgba(255,255,251,.97) 170px,#fffffb 350px);backdrop-filter:blur(2px);border-radius:8px;box-shadow:0 12px 32px #00000012}
 @media(max-width:650px){.paper-photo{height:clamp(310px,60vh,650px);background-size:contain}.calendar-paper{margin-top:-65px}.photo-shade{padding:16px}.photo-shade h1{font-size:29px}}
+
+/* Paper-calendar entries: legible without opening an appointment */
+.paper-month .cell{overflow:visible;min-height:132px}
+.event-click{white-space:normal;text-overflow:clip;overflow:visible;word-break:break-word;line-height:1.4}
+.event-click strong{font-weight:600}
+.event-extra{display:block;font-weight:400;font-size:11px;line-height:1.35;margin-top:3px;color:#536157}
+.agenda-cell .event-click{font-size:13px}
+@media(max-width:650px){.paper-month .cell{min-height:110px}.event-extra{font-size:10px}}

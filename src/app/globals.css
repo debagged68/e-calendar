@@ -52,3 +52,14 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 .paper-shell:has(.full-photo) .full-photo{width:100%;height:auto}
 .paper-shell:has(.full-photo) .paper-photo::after{top:calc(var(--calendar-start) - 160px);bottom:0}
 @media(max-width:650px){.paper-shell{--calendar-start:280px}.photo-shade{padding:16px}.paper-photo::after,.paper-shell:has(.full-photo) .paper-photo::after{top:calc(var(--calendar-start) - 105px)}}
+
+/* Corrected continuous image-to-calendar blend: no hard boundary */
+.paper-shell{--calendar-start:420px;isolation:isolate}
+.paper-photo,.paper-shell:has(.full-photo) .paper-photo{height:var(--calendar-start);min-height:var(--calendar-start);max-height:none;overflow:visible;position:relative;background:transparent}
+.paper-photo .full-photo,.paper-shell:has(.full-photo) .full-photo{position:absolute;top:0;left:0;display:block;width:100%;height:auto;max-width:100%;object-fit:contain;z-index:0;-webkit-mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 140px),rgba(0,0,0,.8) var(--calendar-start),rgba(0,0,0,.35) calc(var(--calendar-start) + 150px),transparent calc(var(--calendar-start) + 360px));mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 140px),rgba(0,0,0,.8) var(--calendar-start),rgba(0,0,0,.35) calc(var(--calendar-start) + 150px),transparent calc(var(--calendar-start) + 360px))}
+.paper-photo::after,.paper-shell:has(.full-photo) .paper-photo::after{display:none}
+.paper-shell .calendar-paper,.paper-shell:has(.full-photo) .calendar-paper{margin-top:0;position:relative;z-index:3;background:linear-gradient(to bottom,rgba(255,255,251,.24) 0px,rgba(255,255,251,.64) 115px,rgba(255,255,251,.93) 260px,#fffffb 370px);box-shadow:none}
+.paper-shell .calendar-head,.paper-shell .source-legend{position:relative;z-index:4}
+.paper-shell .calendar-paper .cell{background:rgba(255,255,251,.65)}
+.paper-shell .calendar-paper .dayname{background:rgba(242,242,236,.7)}
+@media(max-width:650px){.paper-shell{--calendar-start:280px}.paper-photo .full-photo,.paper-shell:has(.full-photo) .full-photo{-webkit-mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 90px),rgba(0,0,0,.75) var(--calendar-start),transparent calc(var(--calendar-start) + 270px));mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) - 90px),rgba(0,0,0,.75) var(--calendar-start),transparent calc(var(--calendar-start) + 270px))}}

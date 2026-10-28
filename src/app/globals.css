@@ -135,3 +135,21 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 .paper-shell.fit-screen .calendar-paper .agenda-heading{height:34px;min-height:0;padding:8px 10px;background:rgba(255,255,250,.70);align-self:stretch}
 .paper-shell.fit-screen .calendar-paper .agenda-date,.paper-shell.fit-screen .calendar-paper .agenda-cell{background:rgba(255,255,251,.06);min-height:0}
 }
+
+
+/* Permanent daily thought and positive-news footer, with photo visible behind. */
+.paper-shell .daily-strip{position:relative;z-index:3;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0;padding:8px 18px 12px;background:rgba(255,255,251,.40)}
+.paper-shell .daily-panel{min-width:0;padding:9px 12px;border-radius:9px;background:rgba(255,255,251,.80);color:#20352e}
+.paper-shell .daily-panel h3{font-size:13px;line-height:1.2;margin:0 0 4px;font-weight:700}
+.paper-shell .daily-panel p{font-size:12px;line-height:1.3;margin:3px 0}
+.paper-shell .daily-panel a{display:block;color:#184e46;font-size:12px;line-height:1.3;font-weight:700}
+.paper-shell .daily-panel small{font-size:10px;color:#4c5a53}
+@media(min-width:851px){
+.paper-shell.fit-screen .daily-strip{flex:0 0 auto;max-height:110px;min-height:0;padding:5px 18px 7px;gap:8px;background:rgba(255,255,251,.20)}
+.paper-shell.fit-screen .daily-panel{padding:5px 9px;overflow:hidden}
+.paper-shell.fit-screen .daily-panel h3{font-size:12px;margin:0 0 2px}
+.paper-shell.fit-screen .daily-panel p{font-size:11px;line-height:1.22;margin:2px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.paper-shell.fit-screen .daily-panel a{font-size:11px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.paper-shell.fit-screen .daily-panel small{font-size:10px}
+}
+@media(max-width:650px){.paper-shell .daily-strip{grid-template-columns:1fr;padding:10px}}

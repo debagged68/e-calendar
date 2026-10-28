@@ -10,6 +10,7 @@ frontend:
         # Keep this server-only key out of NEXT_PUBLIC_ variables and out of Git.
         - 'test -n "$GROQ_API_KEY" || (echo "Missing GROQ_API_KEY in Amplify environment" && exit 1)'
         - 'printf "GROQ_API_KEY=%s\n" "$GROQ_API_KEY" >> .env.production'
+        - 'if [ -n "$TESCO_SESSION_B64" ]; then printf "TESCO_SESSION_B64=%s\n" "$TESCO_SESSION_B64" >> .env.production; fi'
         - npm run build
   artifacts:
     baseDirectory: .next

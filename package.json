@@ -12,7 +12,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "@supabase/supabase-js": "2.105.0",
-    "basketeer": "^0.1.0"
+    "basketeer": "^0.1.0",
+    "@aws-sdk/client-secrets-manager": "^3.800.0"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

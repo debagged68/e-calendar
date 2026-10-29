@@ -185,3 +185,13 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 @media(min-width:851px){.paper-shell.fit-screen .grocery-highlight .grocery-date{font-size:15px;line-height:1.25;margin:3px 0 6px;display:block;overflow:visible}}
 @media(max-width:850px){.paper-shell .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){.paper-shell .daily-strip{grid-template-columns:1fr}}
+
+/* Compact grocery date card: preserve room for thought and news. */
+.paper-shell .daily-strip{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(175px,.55fr)}
+.paper-shell .grocery-highlight{gap:7px;padding:10px 11px}
+.paper-shell .grocery-highlight .daily-symbol{flex:0 0 30px;width:30px;height:30px;font-size:19px}
+.paper-shell .grocery-highlight .grocery-date{font-size:14px;margin:3px 0 4px}
+.paper-shell .grocery-highlight .daily-byline{font-size:10px}
+@media(min-width:851px){.paper-shell.fit-screen .daily-strip{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(175px,.55fr)}.paper-shell.fit-screen .grocery-highlight{padding:8px}.paper-shell.fit-screen .grocery-highlight .daily-symbol{flex-basis:28px;width:28px;height:28px;font-size:18px}.paper-shell.fit-screen .grocery-highlight .grocery-date{font-size:13px;margin:2px 0 3px}}
+@media(min-width:651px) and (max-width:850px){.paper-shell .daily-strip{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(150px,.6fr)}}
+@media(max-width:650px){.paper-shell .daily-strip{grid-template-columns:1fr}}

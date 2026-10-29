@@ -46,7 +46,7 @@ export async function GET(req:NextRequest){
    const [fav,last]=await Promise.all([client.favourites({limit:100}),client.orders.lastFulfilled()]);
    const normal=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
    const score=(query:string,title:string)=>{const words=normal(query).split(' ').filter(w=>w.length>1);const t=normal(title);return words.length?words.filter(w=>t.includes(w)).length/words.length:0};
-   const product=(p:{sku:string;title:string;price?:{actual?:number}|null})=>({sku:p.sku,title:p.title,price:p.price?.actual??null});
+   const product=(p:{sku:string;title:string;price?:{actual?:number|null}|null})=>({sku:p.sku,title:p.title,price:p.price?.actual??null});
    const lastIds=new Set((last?.items||[]).map(x=>x.productId).filter((x):x is string=>typeof x==='string'));
    const matches=[];
    for(const name of names){

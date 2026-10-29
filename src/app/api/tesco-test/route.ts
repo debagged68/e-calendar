@@ -60,7 +60,7 @@ export async function GET(req:NextRequest){
     if(!q.length)return 0;
     // Avoid confusing plain milk with plant drinks, flavoured milk or milk powder.
     if(q.length===1&&q[0]==='milk'&&['oat','almond','soya','soy','coconut','rice','goat','chocolate','strawberry','shake','powder','condensed','evaporated'].some(w=>t.includes(w)))return 0;
-    // Reject unrelated oat products when the request is simply for oats.
+    // Porridge can match porridge oats, but never oat milk or other oat drinks.\n    if(q.includes('porridge')&&['milk','drink','barista','beverage','yoghurt','yogurt','biscuit','bar'].some(w=>t.includes(w)))return 0;\n    // Reject unrelated oat products when the request is simply for oats.
     if(q.length===1&&q[0]==='oat'&&['milk','drink','biscuit','bar','cheese','goat'].some(w=>t.includes(w)))return 0;
     const hits=q.filter(w=>t.includes(w)||(synonyms[w]||[]).some(v=>t.includes(v))).length;
     if(hits!==q.length)return 0;

@@ -19,73 +19,8 @@ export default function Page(){
  const [daily,setDaily]=useState<DailyContent|null>(null);
  const [shopList,setShopList]=useState<{id:string;event_id:string|null}|null>(null);
  const [shopItems,setShopItems]=useState<{id:string;name:string;quantity:number;unit:string}[]>([]);
- const [shopBusy,setShopBusy]=useState(false);
- type SavedProduct={grocery_item_id:string;tesco_sku:string;tesco_title:string;price_at_selection:number|null;basket_status:'selected'|'sending'|'sent';basket_sent_at:string|null};
- const [savedProducts,setSavedProducts]=useState<Record<string,SavedProduct>>({});
- const [basketBusy,setBasketBusy]=useState(false);
- const [productImages,setProductImages]=useState<Record<string,string>>({});
- const [shopMessage,setShopMessage]=useState('');
- const [shopInput,setShopInput]=useState('');
- const [groceryScheduleOpen,setGroceryScheduleOpen]=useState(false);
- const [groceryDate,setGroceryDate]=useState(()=>key(new Date()));
- const [groceryScheduleBusy,setGroceryScheduleBusy]=useState(false);
- type TescoProduct={sku:string;title:string;price?:number|null};
- const [tescoMatches,setTescoMatches]=useState<Record<string,string>>({});
- const [tescoOptions,setTescoOptions]=useState<Record<string,{favourite:TescoProduct|null;lastOrder:TescoProduct|null;cheapest:TescoProduct|null}>>({});
- const [tescoBusy,setTescoBusy]=useState(false);
- const [tescoLoaded,setTescoLoaded]=useState(false);
- const [tescoNeedsReconnect,setTescoNeedsReconnect]=useState(false);
- async function loadTescoMatches(){
-  const unassigned=shopItems.filter(item=>!savedProducts[item.id]);
-  if(!supabase||!unassigned.length)return;
-  setTescoNeedsReconnect(false);
-  setTescoBusy(true);setShopMessage('Finding Tesco matches…');
-  try{
-   const {data:{session}}=await supabase.auth.getSession();
-   if(!session)throw Error('Sign in again');
-   const params=new URLSearchParams({action:'matches',names:JSON.stringify(unassigned.map(x=>x.name))});
-   const response=await fetch('/api/tesco-test?'+params,{headers:{Authorization:'Bearer '+session.access_token}});
-   const raw=await response.text();
-   let data:{error?:string;matches?:Array<{favourite:TescoProduct|null;lastOrder:TescoProduct|null;cheapest:TescoProduct|null}>};
-   try{data=JSON.parse(raw)}catch{throw Error(response.status===504||response.status===502?'Tesco matching timed out. Please try again.':'Tesco matching returned an invalid response (HTTP '+response.status+'). Please retry.')} 
-   if(!response.ok){if(/EXPIRED|session expired|Tesco session/i.test(data.error||'')){setTescoNeedsReconnect(true);throw Error('Tesco session expired. Your grocery list is safe. Use Reconnect Tesco below.')}throw Error(data.error||'Tesco matching failed (HTTP '+response.status+')')}
-   const mapped:Record<string,{favourite:TescoProduct|null;lastOrder:TescoProduct|null;cheapest:TescoProduct|null}>={};
-   const chosen:Record<string,string>={};
-   unassigned.forEach((item,i)=>{const entry=data.matches?.[i]||{favourite:null,lastOrder:null,cheapest:null};mapped[item.id]=entry;chosen[item.id]=savedProducts[item.id]?.tesco_sku||''});
-   setTescoOptions(prev=>({...prev,...mapped}));setTescoMatches(prev=>({...prev,...chosen}));setTescoLoaded(true);
-   setShopMessage('Suggestions refreshed for unassigned groceries only. Existing selections are unchanged.');
-  }catch(e){setShopMessage(e instanceof Error?e.message:'Tesco matching failed')}finally{setTescoBusy(false)}
- }
-
- async function loadShop(){if(!supabase)return;const lists=await supabase.from('grocery_lists').select('id,event_id').eq('status','collecting').limit(1);if(lists.error){setShopMessage(lists.error.message);return}const list=lists.data?.[0]||null;setShopList(list);if(!list){setShopItems([]);setSavedProducts({});return}const products=await supabase.from('grocery_item_products').select('grocery_item_id,tesco_sku,tesco_title,price_at_selection,basket_status,basket_sent_at').in('grocery_item_id',(await supabase.from('grocery_items').select('id').eq('list_id',list.id)).data?.map(x=>x.id)||['00000000-0000-0000-0000-000000000000']);if(products.error)setShopMessage(products.error.message);else setSavedProducts(Object.fromEntries((products.data||[]).map(x=>[x.grocery_item_id,x as SavedProduct])));const rows=await supabase.from('grocery_items').select('id,name,quantity,unit').eq('list_id',list.id).order('created_at');if(rows.error)setShopMessage(rows.error.message);else setShopItems(rows.data||[])}
- async function chooseProduct(itemId:string,p:TescoProduct|null){
-  if(!supabase||basketBusy)return;
-  setShopBusy(true);
-  const old=savedProducts[itemId];
-  if(old?.basket_status==='sent'||old?.basket_status==='sending'){setShopMessage('This item has already been committed or is awaiting basket confirmation.');setShopBusy(false);return;}
-  const result=p?await supabase.from('grocery_item_products').upsert({grocery_item_id:itemId,tesco_sku:p.sku,tesco_title:p.title,price_at_selection:p.price??null,basket_status:'selected',basket_sent_at:null},{onConflict:'grocery_item_id'}):await supabase.from('grocery_item_products').delete().eq('grocery_item_id',itemId);
-  if(result.error)setShopMessage(result.error.message);else setShopMessage(p?'Product selection saved. Nothing sent to Tesco yet.':'Product selection removed.');
-  await loadShop();setShopBusy(false);
- }
- async function commitBasket(){
-  if(!supabase||!shopList||basketBusy)return;
-  setBasketBusy(true);setShopMessage('Sending selected products to Tesco basket…');
-  try{
-   const {data:{session}}=await supabase.auth.getSession();
-   if(!session)throw Error('Sign in again');
-   const response=await fetch('/api/tesco-basket-commit',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({listId:shopList.id})});
-   const data=await response.json() as {message?:string;error?:string};
-   setShopMessage(data.message||data.error||'Basket request finished.');
-   if(!response.ok&&/session expired/i.test(data.error||''))setTescoNeedsReconnect(true);
-  }catch(e){setShopMessage(e instanceof Error?e.message:'Basket request failed')}finally{await loadShop();setBasketBusy(false)}
- }
- useEffect(()=>{if(!supabase||!user)return;const skus=[...new Set([...Object.values(savedProducts).map(p=>p.tesco_sku),...Object.values(tescoOptions).flatMap(o=>[o.favourite?.sku,o.lastOrder?.sku,o.cheapest?.sku].filter((sku):sku is string=>!!sku))])].filter(sku=>!(sku in productImages));if(!skus.length)return;let cancelled=false;async function fetchImages(){const {data:{session}}=await supabase!.auth.getSession();if(!session)return;for(const sku of skus){try{const r=await fetch('/api/tesco-test?action=product&sku='+encodeURIComponent(sku),{headers:{Authorization:'Bearer '+session.access_token}});const data=await r.json();if(!cancelled)setProductImages(prev=>({...prev,[sku]:r.ok&&typeof data.product?.imageUrl==='string'?data.product.imageUrl:''}));}catch{if(!cancelled)setProductImages(prev=>({...prev,[sku]:''}));}}}void fetchImages();return()=>{cancelled=true}},[savedProducts,tescoOptions,user]);
- async function scheduleGroceryOrder(){if(!supabase||!user||!groceryDate||groceryScheduleBusy)return;setGroceryScheduleBusy(true);setDataError('');try{const created=await supabase.from('family_events').insert({title:'Next Tesco Shop',event_date:groceryDate,important:false,created_by:user.id}).select('id,title,event_date,important').single();if(created.error)throw created.error;const event=created.data;const linked=shopList?await supabase.from('grocery_lists').update({event_id:event.id}).eq('id',shopList.id):await supabase.from('grocery_lists').insert({event_id:event.id,status:'collecting'});if(linked.error){await supabase.from('family_events').delete().eq('id',event.id);throw linked.error;}setEvents(v=>[...v,{id:event.id,title:event.title,date:event.event_date,source:'family',important:event.important}]);setGroceryScheduleOpen(false);await loadShop();setSelected({id:event.id,title:event.title,date:event.event_date,source:'family'});}catch(e){setDataError(e instanceof Error?e.message:'Unable to schedule grocery order')}finally{setGroceryScheduleBusy(false)}}
- 
- async function changeShopItem(id:string,quantity:number){if(!supabase||shopBusy)return;setShopBusy(true);const result=quantity<1?await supabase.from('grocery_items').delete().eq('id',id):await supabase.from('grocery_items').update({quantity}).eq('id',id);if(result.error)setShopMessage(result.error.message);await loadShop();setShopBusy(false)}
- async function addShopItem(){if(!supabase||!shopList||!shopInput.trim()||shopBusy)return;setShopBusy(true);const name=shopInput.trim();const existing=shopItems.find(i=>i.name.toLowerCase()===name.toLowerCase());const result=existing?await supabase.from('grocery_items').update({quantity:existing.quantity+1}).eq('id',existing.id):await supabase.from('grocery_items').insert({list_id:shopList.id,name,quantity:1});if(result.error)setShopMessage(result.error.message);else{setShopInput('');setShopMessage('Saved to the shared grocery list.')}await loadShop();setShopBusy(false)}
+ async function loadShop(){if(!supabase)return;const lists=await supabase.from('grocery_lists').select('id,event_id').eq('status','collecting').limit(1);if(lists.error)return;const list=lists.data?.[0]||null;setShopList(list);if(!list){setShopItems([]);return}const rows=await supabase.from('grocery_items').select('id,name,quantity,unit').eq('list_id',list.id);if(!rows.error)setShopItems(rows.data||[])}
  useEffect(()=>{if(user)void loadShop()},[user]);
-
  useEffect(()=>{let active=true;async function load(){try{const r=await fetch('/api/daily-inspiration');if(r.ok&&active)setDaily(await r.json())}catch{}}void load();const timer=setInterval(load,3600000);return()=>{active=false;clearInterval(timer)}},[]);
  const newsIcon=(()=>{const t=(daily?.news?.title||'').toLowerCase();if(/ocean|sea|island|marine|coral|river/.test(t))return '🌊';if(/forest|tree|wildlife|animal|nature|species/.test(t))return '🌿';if(/space|star|planet|moon/.test(t))return '🪐';if(/science|research|discover|medical|health/.test(t))return '🔬';if(/solar|energy|climate|renewable/.test(t))return '☀️';if(/school|education|child|community/.test(t))return '🌍';return '✨'})();
  const [fitScreen,setFitScreen]=useState(true); const [date,setDate]=useState(()=>new Date()),[view,setView]=useState<'day'|'week'|'month'>('month'),[visible,setVisible]=useState<Source[]>(['family','outlook','google','hotmail']),[events,setEvents]=useState<Event[]>([]),[ready,setReady]=useState(false),[title,setTitle]=useState(''),[when,setWhen]=useState(()=>key(new Date())),[important,setImportant]=useState(false),[photo,setPhoto]=useState('');
@@ -104,7 +39,7 @@ export default function Page(){
  if(!authReady)return <main className="shell"><p>Checking your session…</p></main>;
  if(!supabase)return <main className="shell"><section className="panel"><h1>Family Calendar setup</h1><p>Supabase Auth is installed but not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to AWS Amplify environment variables.</p></section></main>;
  if(!user)return <main className="shell"><section className="panel" style={{maxWidth:440,margin:'10vh auto'}}><h1>Our Family Calendar</h1><p>Sign in to your family account</p><form className="form" onSubmit={e=>{e.preventDefault();void signIn()}}><input type="email" autoComplete="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} required/><input type="password" autoComplete="current-password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required/><button className="active" disabled={busy}>{busy?'Signing in…':'Sign in'}</button>{authError&&<p role="alert">{authError}</p>}</form><p className="small">Family accounts are created by the administrator. Public registration is disabled in this application.</p></section></main>;
- const ordered=['family',...calendars.map(c=>c.id)]; const details=(e:Event)=>{setSelected(e);setShopMessage('');if(e.source==='family')void loadShop()};
+ const ordered=['family',...calendars.map(c=>c.id)]; const details=(e:Event)=>{setSelected(e)};
  return <main className={"shell paper-shell "+(fitScreen?"fit-screen":"full-detail")}>
  <div className="topbar"><div className="brand">OUR FAMILY <span>calendar</span></div><div className="controls"><button onClick={()=>setFitScreen(v=>!v)} aria-pressed={fitScreen}>{fitScreen?"Full detail":"Fit to screen"}</button><a href="/add" className="primary" style={{display:"inline-flex",alignItems:"center",textDecoration:"none",padding:"8px 13px",borderRadius:8}}>＋ Quick Action</a><button onClick={()=>setSettingsOpen(true)}>⚙ Settings</button><button onClick={()=>void supabase.auth.signOut()}>Sign out</button></div></div>
  <div className="paper-photo">{photo&&<img className="full-photo" src={photo} alt="Family calendar photograph"/>}<div className="photo-shade"><span>THE DAYS WE SHARE</span><h1>Our Family Calendar</h1></div></div>

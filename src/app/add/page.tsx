@@ -24,9 +24,52 @@ export default function AddPage(){
  async function addGroceries(raw:string){if(!client||!listId)return;const parsed=raw.split(/,|\band\b/i).map(v=>v.trim()).filter(Boolean);if(!parsed.length)return setMessage('Enter at least one grocery item.');setGroceryBusy(true);try{for(const entry of parsed){const match=entry.match(/^(?:add |buy |need )?(\d+)\s+(.+)$/i);const quantity=match?Number(match[1]):1;const name=(match?match[2]:entry).replace(/^(?:add|buy|need)\s+/i,'').trim();if(!name||quantity<1||quantity>999)continue;const existing=groceryItems.find(x=>x.name.toLowerCase()===name.toLowerCase());if(existing){const {error}=await client.from('grocery_items').update({quantity:existing.quantity+quantity}).eq('id',existing.id);if(error)throw Error(error.message)}else{const {error}=await client.from('grocery_items').insert({list_id:listId,name,quantity});if(error)throw Error(error.message)}}setGroceryText('');setDescription('');setMessage('✓ Groceries saved to your shared grocery list.');await refreshGroceries()}catch(e){setMessage(e instanceof Error?e.message:'Could not save groceries')}finally{setGroceryBusy(false)}}
  async function adjustGrocery(id:string,quantity:number){if(!client)return;setGroceryBusy(true);const r=quantity<=0?await client.from('grocery_items').delete().eq('id',id):await client.from('grocery_items').update({quantity}).eq('id',id);if(r.error)setMessage(r.error.message);await refreshGroceries();setGroceryBusy(false)}
  async function scheduleGroceries(){if(!client||!user||!listId||!groceryDate)return setMessage('Choose a date for the Tesco event.');const start=new Date(groceryDate+'T'+groceryTime+':00');if(Number.isNaN(start.getTime()))return setMessage('Invalid event date.');const end=new Date(start.getTime()+3600000);setGroceryBusy(true);const ev=await client.from('family_events').insert({title:'🛒 Tesco shopping',event_date:groceryDate,start_at:start.toISOString(),end_at:end.toISOString(),important:false,created_by:user.id}).select('id').single();if(ev.error)setMessage(ev.error.message);else{const linked=await client.from('grocery_lists').update({event_id:ev.data.id}).eq('id',listId);setMessage(linked.error?linked.error.message:'✓ Tesco event added to the calendar; groceries attached.');if(!linked.error)setLinkedEvent(true)}setGroceryBusy(false)}
- async function routeQuick(){if(!description.trim())return setMessage('Say or type an appointment or groceries.');if(!client)return;setBusy(true);setMessage('Understanding your request…');try{const {data:{session}}=await client.auth.getSession();if(!session)throw Error('Please sign in.');const r=await fetch('/api/interpret-entry',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({description})});const d=await r.json();if(!r.ok)throw Error(d.error||'Could not interpret request');if(d.intent==='groceries'){setMode('groceries');setGroceryText(d.items?.map((x:{name:string;quantity:number})=>(x.quantity>1?x.quantity+' ':'')+x.name).join(', ')||description);setMessage('Review the grocery items, then tap Add to list.')}else if(d.intent==='appointment'){setMode('appointment');await interpret()}else setMessage('Is this an appointment or groceries? Choose below.')}catch(e){setMessage(e instanceof Error?e.message:'Could not interpret request')}finally{setBusy(false)}}
+ const quickRunning=useRef(false);
+ async function routeQuick(){
+  if(quickRunning.current||busy||groceryBusy)return;
+  if(!description.trim())return setMessage('Say or type an event or groceries.');
+  if(!client)return;
+  quickRunning.current=true;setBusy(true);setMessage('Understanding your request…');
+  try{
+   const {data:{session}}=await client.auth.getSession();
+   if(!session)throw Error('Please sign in.');
+   const response=await fetch('/api/interpret-entry',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({description})});
+   const data=await response.json();
+   if(!response.ok)throw Error(data.error||'Could not interpret request');
+   if(data.intent==='groceries'){
+    const entries=data.items as {name:string;quantity:number}[]|undefined;
+    if(!Array.isArray(entries)||!entries.length)throw Error('No grocery items identified. Please rephrase.');
+    let id=listId;
+    if(!id){
+     const found=await client.from('grocery_lists').select('id').eq('status','collecting').order('created_at',{ascending:true}).limit(1);
+     if(found.error)throw Error(found.error.message);
+     id=found.data?.[0]?.id||'';
+     if(!id){const created=await client.from('grocery_lists').insert({status:'collecting'}).select('id').single();if(created.error)throw Error(created.error.message);id=created.data.id}
+     setListId(id);
+    }
+    const saved:string[]=[];
+    for(const entry of entries){
+     const name=typeof entry.name==='string'?entry.name.trim():'';
+     const quantity=Number(entry.quantity);
+     if(!name||!Number.isInteger(quantity)||quantity<1||quantity>999)throw Error('Invalid grocery item or quantity.');
+     const found=await client.from('grocery_items').select('id,name,quantity').eq('list_id',id).limit(200);
+     if(found.error)throw Error(found.error.message);
+     const existing=found.data?.find(x=>x.name.toLowerCase()===name.toLowerCase());
+     const write=existing?await client.from('grocery_items').update({quantity:existing.quantity+quantity}).eq('id',existing.id):await client.from('grocery_items').insert({list_id:id,name,quantity});
+     if(write.error)throw Error(write.error.message);
+     saved.push((quantity>1?quantity+' × ':'')+name);
+    }
+    setDescription('');setMode('quick');
+    setMessage('✓ Added to Shopping Whiteboard: '+saved.join(', ')+'.');
+    await refreshGroceries();
+   }else if(data.intent==='appointment'){
+    setMode('appointment');await interpret();
+   }else setMessage('Is this an event or groceries? Please rephrase your request.');
+  }catch(e){setMessage(e instanceof Error?e.message:'Could not interpret request')}
+  finally{quickRunning.current=false;setBusy(false)}
+ }
  const styles={page:{minHeight:'100dvh',background:'#edf3ed',padding:'24px 16px',fontFamily:'Arial, sans-serif',color:'#20392e'},card:{maxWidth:560,margin:'0 auto',padding:24,background:'#fff',borderRadius:20,boxShadow:'0 4px 20px #173c2914'},input:{width:'100%',boxSizing:'border-box' as const,fontSize:20,padding:15,border:'2px solid #b6c8ba',borderRadius:12,marginTop:8,marginBottom:17},button:{width:'100%',minHeight:58,fontSize:19,fontWeight:700 as const,border:0,borderRadius:12,cursor:'pointer',marginTop:10},label:{fontSize:17,fontWeight:700 as const}};
- return <main style={styles.page}><div style={styles.card}><a href="/" style={{color:'#23654f'}}>← View family calendar</a><h1 style={{fontSize:30,marginBottom:8}}>Quick Action</h1><p style={{fontSize:17,lineHeight:1.5}}>Speak or type an event or grocery item. Review it before saving.</p><a href="/basket" style={{display:"inline-block",padding:"14px 18px",background:"#e1eee5",borderRadius:12,color:"#194a37",fontWeight:700,textDecoration:"none",marginBottom:10}}>✎ Shopping Whiteboard</a>
+ return <main style={styles.page}><div style={styles.card}><a href="/" style={{color:'#23654f'}}>← View family calendar</a><h1 style={{fontSize:30,marginBottom:8}}>Quick Action</h1><p style={{fontSize:17,lineHeight:1.5}}>Speak or type an event or grocery item. Groceries are added immediately; events are shown for review.</p><a href="/basket" style={{display:"inline-block",padding:"14px 18px",background:"#e1eee5",borderRadius:12,color:"#194a37",fontWeight:700,textDecoration:"none",marginBottom:10}}>✎ Shopping Whiteboard</a>
  {!ready?<p>Checking sign-in…</p>:!client?<p>Calendar configuration unavailable.</p>:!user?<form onSubmit={e=>{e.preventDefault();void login()}}><h2>Sign in</h2><label style={styles.label}>Email<input style={styles.input} type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label style={styles.label}>Password<input style={styles.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button style={{...styles.button,background:'#24634f',color:'white'}} disabled={busy}>Sign in</button></form>:<>
  <div style={{display:'flex',gap:8,margin:'12px 0'}}>{(['quick','appointment','groceries'] as const).map(m=><button key={m} type="button" onClick={()=>{setMode(m);setMessage('')}} style={{flex:1,padding:'12px 5px',borderRadius:10,border:mode===m?'2px solid #24634f':'1px solid #cbd9cf',background:mode===m?'#e1eee5':'white',fontWeight:700}}>{m==='quick'?'Quick add':m==='appointment'?'Event':'Groceries'}</button>)}</div>
  {mode!=='groceries'&&<><label style={styles.label} htmlFor="description">{mode==='quick'?'What would you like to add?':'Describe your appointment'}</label><textarea id="description" rows={3} style={{...styles.input,resize:'vertical'}} placeholder="e.g. Dentist Thursday at 10, or add 2 milk and eggs" value={description} onChange={e=>setDescription(e.target.value)} onKeyDown={e=>{if(mode==='quick'&&e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();if(!busy&&!transcribing&&!listening&&description.trim())void routeQuick()}}}/>

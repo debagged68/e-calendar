@@ -121,7 +121,7 @@ export async function GET(req:NextRequest){
   if(action==='favourites'){const data=await client.favourites({limit:30});return reply({items:data.results.map(x=>({sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}))})}
   if(action==='basket'){
    const basket=await client.basket.get();
-   const skus=[...new Set(basket.items.map(x=>x.sku))];
+   const skus=[...new Set(basket.items.map(x=>x.sku).filter((sku):sku is string=>typeof sku==='string'&&sku.length>0))];
    const details=new Map<string,{title:string;price:number|null;imageUrl:string|null}>();
    for(let i=0;i<skus.length;i+=6){
     const results=await Promise.allSettled(skus.slice(i,i+6).map(sku=>client.getProduct(sku)));
@@ -132,7 +132,7 @@ export async function GET(req:NextRequest){
      }
     });
    }
-   return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,cost:x.cost,product:details.get(x.sku)||null})),guidePrice:basket.guidePrice});
+   return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,cost:x.cost,product:(x.sku?details.get(x.sku):null)||null})),guidePrice:basket.guidePrice});
   }
   if(action==='product'){const sku=req.nextUrl.searchParams.get('sku')||'';if(!/^\d{6,15}$/.test(sku))return reply({error:'Invalid SKU'},400);const x=await client.getProduct(sku);return reply({product:{sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}})}
   return reply({error:'Unknown test operation'},400);

@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import {createClient,type User} from '@supabase/supabase-js';
 const db=process.env.NEXT_PUBLIC_SUPABASE_URL&&process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY):null;
-type BasketItem={sku:string;quantity:number;cost?:number};
+type BasketItem={sku:string;quantity:number;cost?:number;product?:{title:string;price:number|null;imageUrl:string|null}|null};
 type Order={orderNo:string;start:string;end:string};
 type Slot={id:string;start:string;end:string};
 export default function TescoBasket(){
@@ -22,8 +22,8 @@ export default function TescoBasket(){
  {slots.length>0&&<section style={{padding:14,background:'#eef5ef',borderRadius:12,marginTop:18}}><h2>Confirm your reserved slot</h2><p>Only select a slot that matches the reservation shown in your Tesco account.</p>{slots.map(slot=><button key={slot.id} disabled={finding} style={{...button,display:'block',marginBottom:10}} onClick={()=>void find(slot.id)}>{new Date(slot.start).toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'long',day:'numeric',month:'long'})} · {new Date(slot.start).toLocaleTimeString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'})}–{new Date(slot.end).toLocaleTimeString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'})} · Add to calendar</button>)}</section>}
  {order&&<section style={{padding:14,background:'#eef5ef',borderRadius:12,marginTop:18}}><h2>Next Tesco order</h2><p><strong>Order:</strong> {order.orderNo}</p><p><strong>Delivery:</strong> {new Date(order.start).toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'long',day:'numeric',month:'long'})} · {new Date(order.start).toLocaleTimeString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'})}–{new Date(order.end).toLocaleTimeString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'})}</p></section>}
  <h2>Products in Tesco basket</h2>{!loading&&!items.length&&<p>No products returned.</p>}
- {items.map(item=><div key={item.sku} style={{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid #d9e3db'}}><span>Product SKU {item.sku}</span><strong>× {item.quantity}</strong></div>)}
- {guidePrice!==null&&<p><strong>Guide price:</strong> £{guidePrice.toFixed(2)}</p>}
+ {items.map(item=><div key={item.sku} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 0',borderBottom:'1px solid #d9e3db'}}>{item.product?.imageUrl?<img src={item.product.imageUrl} alt="" style={{width:76,height:76,objectFit:'contain',border:'1px solid #e2e8ed',borderRadius:10,background:'#fff',padding:5}}/>:<div style={{width:76,height:76,display:'grid',placeItems:'center',background:'#f0f3f5',borderRadius:10,fontSize:28}}>🛒</div>}<div style={{flex:1,minWidth:0}}><strong style={{fontSize:17}}>{item.product?.title||'Tesco product'}</strong><div style={{marginTop:5}}>Quantity: {item.quantity}</div><div style={{fontSize:13,color:'#64776b'}}>SKU {item.sku}</div></div><div style={{textAlign:'right',minWidth:80}}><strong>{typeof item.product?.price==='number'?'£'+item.product.price.toFixed(2):'Price unavailable'}</strong><div style={{fontSize:13,color:'#64776b'}}>per item</div><div style={{marginTop:8,fontWeight:700}}>{typeof item.product?.price==='number'?'£'+(item.product.price*item.quantity).toFixed(2):typeof item.cost==='number'?'£'+item.cost.toFixed(2):'—'}</div><div style={{fontSize:12,color:'#64776b'}}>line total</div></div></div>)}
+ {guidePrice!==null&&<p style={{fontSize:20,textAlign:'right'}}><strong>Tesco basket guide total: £{guidePrice.toFixed(2)}</strong></p>}
  {message&&<p role="status">{message} {/tesco.*(session|expired|reconnect)/i.test(message)&&<Link href="/tesco-reconnect?returnTo=%2Ftesco-basket">Reconnect Tesco</Link>}</p>}
  </>}</section></main>;
 }

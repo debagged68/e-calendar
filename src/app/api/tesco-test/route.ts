@@ -99,6 +99,16 @@ export async function GET(req:NextRequest){
     return reply({error:'Tesco matching failed during '+stage+'. Reference '+traceId,traceId},502);
    }
   }
+  if(action==='find-order'){
+   const orders=await client.orders.list();
+   const localDate=(value:Date)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(value);
+   const today=localDate(new Date());
+   const upcoming=orders.filter(o=>o.slot?.start&&o.slot?.end&&Number.isFinite(Date.parse(o.slot.start))&&Number.isFinite(Date.parse(o.slot.end))&&localDate(new Date(o.slot.start))>=today&&Date.parse(o.slot.end)>Date.parse(o.slot.start))
+    .sort((a,b)=>Date.parse(a.slot!.start!)-Date.parse(b.slot!.start!));
+   const order=upcoming[0];
+   if(!order)return reply({message:'No Tesco order with a delivery slot today or later was found.',found:false});
+   return reply({found:true,order:{id:order.id,orderNo:order.orderNo,status:order.status,start:order.slot!.start,end:order.slot!.end}});
+  }
   if(action==='favourites'){const data=await client.favourites({limit:30});return reply({items:data.results.map(x=>({sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}))})}
   if(action==='basket'){const basket=await client.basket.get();return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,cost:x.cost})),guidePrice:basket.guidePrice})}
   if(action==='product'){const sku=req.nextUrl.searchParams.get('sku')||'';if(!/^\d{6,15}$/.test(sku))return reply({error:'Invalid SKU'},400);const x=await client.getProduct(sku);return reply({product:{sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}})}
@@ -107,6 +117,34 @@ export async function GET(req:NextRequest){
 }
 export async function POST(req:NextRequest){
  if(!await authorize(req))return reply({error:'Sign in to the calendar first.'},401);
+  if((req.nextUrl.searchParams.get('action'))==='sync-order'){
+   const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+   const token=req.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
+   if(!url||!key||!token)return reply({error:'Sign in required'},401);
+   const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:'Bearer '+token}}});
+   const {data:{user},error:authError}=await db.auth.getUser(token);
+   if(authError||!user)return reply({error:'Sign in again'},401);
+   try{
+    const client=await tesco();
+    const orders=await client.orders.list();
+    const localDate=(value:Date)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(value);
+    const today=localDate(new Date());
+    const upcoming=orders.filter(o=>o.slot?.start&&o.slot?.end&&Number.isFinite(Date.parse(o.slot.start))&&Number.isFinite(Date.parse(o.slot.end))&&localDate(new Date(o.slot.start))>=today&&Date.parse(o.slot.end)>Date.parse(o.slot.start))
+     .sort((a,b)=>Date.parse(a.slot!.start!)-Date.parse(b.slot!.start!));
+    const order=upcoming[0];
+    if(!order)return reply({found:false,message:'No Tesco order with a delivery slot today or later was found.'});
+    if(!order.id)return reply({error:'Tesco order has no stable identifier; calendar event not created.'},422);
+    const start=order.slot!.start!,end=order.slot!.end!;
+    const date=localDate(new Date(start));
+    const title='Tesco delivery';
+    const existing=await db.from('family_events').select('id').eq('tesco_order_id',order.id).maybeSingle();
+    if(existing.error)throw existing.error;
+    const payload={title,event_date:date,start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),important:false};
+    const result=existing.data?await db.from('family_events').update(payload).eq('id',existing.data.id).select('id').single():await db.from('family_events').insert({...payload,tesco_order_id:order.id,created_by:user.id}).select('id').single();
+    if(result.error)throw result.error;
+    return reply({found:true,eventId:result.data.id,orderNo:order.orderNo,start,end,created:!existing.data,message:existing.data?'Tesco delivery updated in Family calendar.':'Tesco delivery added to Family calendar.'});
+   }catch(e){if(e instanceof Error&&('code' in e))return reply({error:'Could not save Tesco delivery in Family calendar: '+e.message},500);return failure(e)}
+  }
  try{
   const {sku,quantity,confirmed}=await req.json() as {sku?:string;quantity?:number;confirmed?:boolean};
   if(!confirmed||!sku||!/^\d{6,15}$/.test(sku)||quantity!==1)return reply({error:'Explicitly confirm a single SKU and quantity 1.'},400);

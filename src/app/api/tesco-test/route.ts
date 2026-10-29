@@ -55,7 +55,7 @@ export async function GET(req:NextRequest){
    const canonical=(word:string)=>({oats:'oat',eggs:'egg',tomatoes:'tomato',potatoes:'potato',bananas:'banana'} as Record<string,string>)[word]||word;
    const synonyms:Record<string,string[]>={oat:['porridge'],porridge:['oat'],courgette:['zucchini'],zucchini:['courgette'],coriander:['cilantro'],cilantro:['coriander']};
    const score=(query:string,title:string)=>{
-    const q=tokens(query).map(canonical).filter(w=>w.length>1);
+    const q=tokens(query).map(canonical).filter(w=>w.length>1&&!['of','the','for','and','with','from','a','an'].includes(w));
     const t=tokens(title).map(canonical);
     if(!q.length)return 0;
     // Avoid confusing plain milk with plant drinks, flavoured milk or milk powder.

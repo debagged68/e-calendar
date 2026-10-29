@@ -48,3 +48,8 @@
 - Added a dedicated Mac/Windows reconnection guide in the calendar.
 - No changes to Tesco matching, secrets handling or basket operations.
 - Limitation: local Chrome helper still needs to be launched on the user's computer; one-click handoff is not implemented yet.
+
+## One-click local reconnection initiation
+- Added a loopback-only companion (`npm run tesco:helper`) and a Reconnect Tesco button that asks it to launch the existing browser refresh.
+- Requires one-time installation and a running companion on the user's computer. Login interaction and AWS credential renewal may still be necessary.
+- Matching, grocery persistence, and basket operations unchanged.

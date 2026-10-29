@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "tesco:connect": "node scripts/tesco-connect.mjs"
+    "tesco:connect": "node scripts/tesco-connect.mjs",
+    "tesco:helper": "node scripts/tesco-local-helper.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",

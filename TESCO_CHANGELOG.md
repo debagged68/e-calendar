@@ -42,3 +42,9 @@
 - Change: isolate each catalogue search failure; continue matching remaining items, retaining favourites and previous-order matches. Return `searchFailed` per item and log index/error name without customer data.
 - No changes to authentication, Tesco request counts/limits, product ranking or basket mutation.
 - Awaiting Amplify build and live verification.
+
+## In-calendar reconnect guidance
+- Added explicit Tesco-expiry state and a Reconnect Tesco link in the shopping modal.
+- Added a dedicated Mac/Windows reconnection guide in the calendar.
+- No changes to Tesco matching, secrets handling or basket operations.
+- Limitation: local Chrome helper still needs to be launched on the user's computer; one-click handoff is not implemented yet.

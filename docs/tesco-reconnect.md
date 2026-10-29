@@ -29,3 +29,6 @@ npm run tesco:connect -- login
 - The helper does not touch the Tesco basket or product matching logic.
 - If `TESCO_SESSION_B64` is configured in Amplify, the application prefers that stale environment variable over Secrets Manager. **Remove that override** (after checking the deployment configuration), otherwise updates to Secrets Manager will not take effect.
 - Test on both operating systems and verify Amplify before declaring production-ready.
+
+## In-calendar expiry guidance
+The calendar now detects a session-expired matching response and offers a **Reconnect Tesco** link to `/tesco-reconnect`. This page gives local Mac/Windows instructions; it does **not** claim to trigger Chrome automatically. An installed/running local companion service would be required for genuine one-click browser handoff, with a separately designed authentication and CSRF-safe protocol. Do not expose a public endpoint that accepts arbitrary Tesco session data.

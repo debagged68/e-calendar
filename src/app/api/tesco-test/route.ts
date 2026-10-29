@@ -38,6 +38,27 @@ export async function GET(req:NextRequest){
  try{
   const client=await tesco();
   const action=req.nextUrl.searchParams.get('action');
+  if(action==='matches'){
+   const namesRaw=req.nextUrl.searchParams.get('names')||'[]';
+   let names:unknown;
+   try{names=JSON.parse(namesRaw)}catch{return reply({error:'Invalid grocery list'},400)}
+   if(!Array.isArray(names)||names.length>30||names.some(x=>typeof x!=='string'||x.length<1||x.length>100))return reply({error:'Invalid grocery items'},400);
+   const [fav,last]=await Promise.all([client.favourites({limit:100}),client.orders.lastFulfilled()]);
+   const normal=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+   const score=(query:string,title:string)=>{const words=normal(query).split(' ').filter(w=>w.length>1);const t=normal(title);return words.length?words.filter(w=>t.includes(w)).length/words.length:0};
+   const product=(p:{sku:string;title:string;price?:{actual?:number}|null})=>({sku:p.sku,title:p.title,price:p.price?.actual??null});
+   const lastIds=new Set((last?.items||[]).map(x=>x.productId).filter((x):x is string=>typeof x==='string'));
+   const matches=[];
+   for(const name of names){
+    const found=await client.search(name,{limit:20});
+    const suitable=found.results.filter(x=>score(name,x.title)>=0.75);
+    const favourites=fav.results.filter(x=>score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
+    const lastItems=[...fav.results,...found.results].filter(x=>lastIds.has(x.sku)&&score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
+    const cheapest=[...suitable].filter(x=>typeof x.price?.actual==='number').sort((a,b)=>(a.price?.actual??Infinity)-(b.price?.actual??Infinity));
+    matches.push({favourite:favourites[0]?product(favourites[0]):null,lastOrder:lastItems[0]?product(lastItems[0]):null,cheapest:cheapest[0]?product(cheapest[0]):null});
+   }
+   return reply({matches});
+  }
   if(action==='favourites'){const data=await client.favourites({limit:30});return reply({items:data.results.map(x=>({sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}))})}
   if(action==='basket'){const basket=await client.basket.get();return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,cost:x.cost})),guidePrice:basket.guidePrice})}
   if(action==='product'){const sku=req.nextUrl.searchParams.get('sku')||'';if(!/^\d{6,15}$/.test(sku))return reply({error:'Invalid SKU'},400);const x=await client.getProduct(sku);return reply({product:{sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}})}

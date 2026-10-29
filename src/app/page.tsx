@@ -35,8 +35,10 @@ export default function Page(){
    if(!session)throw Error('Sign in again');
    const params=new URLSearchParams({action:'matches',names:JSON.stringify(shopItems.map(x=>x.name))});
    const response=await fetch('/api/tesco-test?'+params,{headers:{Authorization:'Bearer '+session.access_token}});
-   const data=await response.json();
-   if(!response.ok)throw Error(data.error||'Tesco matching failed');
+   const raw=await response.text();
+   let data:{error?:string;matches?:Array<{favourite:TescoProduct|null;lastOrder:TescoProduct|null;cheapest:TescoProduct|null}>};
+   try{data=JSON.parse(raw)}catch{throw Error(response.status===504||response.status===502?'Tesco matching timed out. Please try again.':'Tesco matching returned an invalid response (HTTP '+response.status+'). Please retry.')} 
+   if(!response.ok)throw Error(data.error||'Tesco matching failed (HTTP '+response.status+')');
    const mapped:Record<string,{favourite:TescoProduct|null;lastOrder:TescoProduct|null;cheapest:TescoProduct|null}>={};
    const chosen:Record<string,string>={};
    shopItems.forEach((item,i)=>{const entry=data.matches?.[i]||{favourite:null,lastOrder:null,cheapest:null};mapped[item.id]=entry;chosen[item.id]=(entry.lastOrder||entry.favourite||entry.cheapest)?.sku||''});

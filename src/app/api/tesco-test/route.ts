@@ -60,26 +60,26 @@ export async function GET(req:NextRequest){
    const product=(p:Candidate)=>({sku:p.sku,title:p.title,price:p.price?.actual??null});
    const lastIds=new Set((last?.items||[]).map(x=>String(x.productId||'')).filter(Boolean));
    const matches=[];
+   const orderProducts:Candidate[]=[];
+   // Load historical SKUs once per request, not once per grocery item.
+   for(const sku of [...lastIds].slice(0,12)){
+    const known=fav.results.find(x=>x.sku===sku);
+    if(known){orderProducts.push(known);continue}
+    try{orderProducts.push(await client.getProduct(sku))}catch{/* unavailable historical SKU */}
+   }
    for(const name of names as string[]){
     // Search more candidates, and fall back to a broader singular form.
     const query=words(name).join(' ')||name;
-    const found=await client.search(name,{limit:60});
+    const found=await client.search(name,{limit:30});
     const pool:Candidate[]=[...found.results];
     if(!pool.length||!pool.some(x=>score(name,x.title)>0)){
      const alternate=query==='milk'?'whole milk':query==='oat'?'porridge oats':query;
-     if(alternate!==name){const retry=await client.search(alternate,{limit:60});pool.push(...retry.results)}
+     if(alternate!==name){const retry=await client.search(alternate,{limit:30});pool.push(...retry.results)}
     }
     const unique=(xs:Candidate[])=>xs.filter((x,i,a)=>a.findIndex(y=>y.sku===x.sku)===i);
     const suitable=unique(pool.filter(x=>score(name,x.title)>0));
     const favourites=unique(fav.results.filter(x=>score(name,x.title)>0)).sort((a,b)=>score(name,b.title)-score(name,a.title));
-    // Retrieve the latest order SKUs directly: search results need not include past purchases.
-    const orderProducts:Candidate[]=[];
-    for(const sku of [...lastIds].slice(0,80)){
-     const known=[...fav.results,...pool].find(x=>x.sku===sku);
-     if(known){orderProducts.push(known);continue}
-     try{const p=await client.getProduct(sku);orderProducts.push(p)}catch{/* unavailable historical SKU */}
-    }
-    const lastItems=unique(orderProducts.filter(x=>score(name,x.title)>0));
+    const lastItems=unique([...orderProducts,...pool.filter(x=>lastIds.has(x.sku))].filter(x=>score(name,x.title)>0));
     // Compare unit prices only when the same measurable pack unit is available.
     const pack=(title:string)=>{const m=title.toLowerCase().match(/(\d+(?:\.\d+)?)\s*(kg|g|litres?|l|ml)\b/);if(!m)return null;const n=Number(m[1]);const unit=m[2];return {value:n*(unit==='kg'||unit==='l'||unit.startsWith('litre')?1000:1),kind:unit==='kg'||unit==='g'?'weight':'volume'}};
     const priced=suitable.filter(x=>typeof x.price?.actual==='number'&&x.price.actual>0);

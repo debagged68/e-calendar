@@ -40,11 +40,13 @@ export async function POST(req:NextRequest){
    for(let i=0;i<qty;i++)await tesco.basket.add(m.tesco_sku,1);
    const done=await db.from('grocery_item_products').update({basket_status:'sent',basket_sent_at:new Date().toISOString()}).eq('grocery_item_id',m.grocery_item_id).eq('basket_status','sending');
    if(done.error)throw done.error;
+   const removed=await db.from('grocery_items').delete().eq('id',m.grocery_item_id);
+   if(removed.error)console.error('Sent item cleanup failed',m.grocery_item_id,removed.error.message);
    sent++;
   }catch(e){
    console.error('Tesco basket submission requires review',m.grocery_item_id,e instanceof Error?e.name:'unknown');
    return respond({error:'Basket submission interrupted. '+sent+' items confirmed sent; remaining or in-progress items require review before retrying. Check Tesco basket to avoid duplicates.'},502);
   }
  }
- return respond({message:sent+' grocery item'+(sent===1?'':'s')+' sent to Tesco basket. All selections and sent flags are retained in Supabase.'});
+ return respond({message:sent+' grocery item'+(sent===1?'':'s')+' sent to Tesco basket. Successfully sent items are removed from the chalkboard.'});
 }

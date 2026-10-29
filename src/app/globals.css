@@ -176,3 +176,12 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 .paper-shell.fit-screen .daily-panel .daily-byline{font-size:10px}
 }
 @media(max-width:650px){.paper-shell .daily-strip{grid-template-columns:1fr}.paper-shell .daily-panel{min-height:0}}
+
+/* Grocery-order card alongside daily thought and news. */
+.paper-shell .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+.paper-shell .grocery-highlight{font:inherit;text-align:left;cursor:pointer;color:#173b32;background:rgba(221,241,225,.96);border:2px solid #278579;transition:background .15s ease,box-shadow .15s ease}
+.paper-shell .grocery-highlight:hover,.paper-shell .grocery-highlight:focus-visible{background:#d0ebd7;box-shadow:0 0 0 2px rgba(39,133,121,.2)}
+.paper-shell .grocery-highlight .grocery-date{font-size:17px;font-weight:750;line-height:1.3;margin:5px 0 10px;display:block;white-space:normal}
+@media(min-width:851px){.paper-shell.fit-screen .grocery-highlight .grocery-date{font-size:15px;line-height:1.25;margin:3px 0 6px;display:block;overflow:visible}}
+@media(max-width:850px){.paper-shell .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){.paper-shell .daily-strip{grid-template-columns:1fr}}

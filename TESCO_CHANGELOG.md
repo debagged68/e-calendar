@@ -31,3 +31,8 @@
 ## Next work (not implemented)
 - Validate Basketeer refresh capability and secure AWS-only interactive reconnection path.
 - Persist confirmed Tesco SKU choices across sessions after schema/security review.
+
+## Browser-assisted reconnection implementation
+- Added `scripts/tesco-connect.mjs`: refresh using local Chrome, fall back to interactive Tesco login, write validated session directly to AWS Secrets Manager.
+- Added `npm run tesco:connect` and setup/security guide `docs/tesco-reconnect.md`.
+- This is a laptop-run helper, **not** a calendar-browser button or unattended AWS renewal. Needs scoped AWS credentials and local Playwright installation; untested on physical Mac/Windows machines.

@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+// Runs on either user's Mac or Windows laptop. No Tesco credentials are sent to our app.
+// Chrome authenticates directly with Tesco; only the resulting session is stored in AWS.
+import { SecretsManagerClient, GetSecretValueCommand, PutSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { Basketeer, MemoryTokenStore } from 'basketeer';
+import { BrowserAuthBackend } from 'basketeer/auth/browser/playwright';
+
+const region=process.env.AWS_REGION||'eu-north-1';
+const secretId=process.env.TESCO_SECRET_ID||'e-calendar/tesco-session';
+const mode=process.argv[2]||'refresh';
+if(!['refresh','login'].includes(mode)){console.error('Usage: npm run tesco:connect -- [refresh|login]');process.exitCode=2}
+else {
+ const aws=new SecretsManagerClient({region});
+ try{
+  let old=null;
+  if(mode==='refresh'){
+   try{
+    const result=await aws.send(new GetSecretValueCommand({SecretId:secretId}));
+    const value=result.SecretString||(result.SecretBinary?Buffer.from(result.SecretBinary).toString('utf8'):null);
+    if(value)old=JSON.parse(value);
+   }catch(e){
+    if(e?.name!=='ResourceNotFoundException')throw e;
+   }
+  }
+  const store=new MemoryTokenStore(old);
+  const authBackend=new BrowserAuthBackend();
+  const client=new Basketeer({store,authBackend});
+  let session;
+  if(old?.accessToken&&old?.cookies&&old?.customerUuid){
+   try{session=await authBackend.refresh(old);console.log('Tesco browser session renewed.')}
+   catch(e){console.warn('Renewal unavailable; opening Tesco login.');session=await client.login()}
+  }else{
+   console.log('Opening Tesco login in Chrome...');
+   session=await client.login();
+  }
+  if(!session?.accessToken||!session?.customerUuid||!session?.cookies||!session?.accessTokenExpiry||session.accessTokenExpiry<=Date.now()+30000)throw Error('Tesco did not return a valid fresh session; AWS was not changed.');
+  await aws.send(new PutSecretValueCommand({SecretId:secretId,SecretString:JSON.stringify(session)}));
+  console.log('AWS Tesco session updated. Expires:',new Date(session.accessTokenExpiry).toLocaleString('en-GB'));
+  console.log('Both calendar users can now match products. No basket changes were made.');
+ }catch(e){
+  console.error('Tesco connection failed:',e instanceof Error?e.message:String(e));
+  console.error('AWS secret was not intentionally changed on failure. Check AWS credentials, Chrome and Tesco sign-in.');
+  process.exitCode=1;
+ }
+}

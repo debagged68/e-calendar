@@ -99,16 +99,6 @@ export async function GET(req:NextRequest){
     return reply({error:'Tesco matching failed during '+stage+'. Reference '+traceId,traceId},502);
    }
   }
-  if(action==='find-order'){
-   const orders=await client.orders.list();
-   const localDate=(value:Date)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(value);
-   const today=localDate(new Date());
-   const upcoming=orders.filter(o=>o.slot?.start&&o.slot?.end&&Number.isFinite(Date.parse(o.slot.start))&&Number.isFinite(Date.parse(o.slot.end))&&localDate(new Date(o.slot.start))>=today&&Date.parse(o.slot.end)>Date.parse(o.slot.start))
-    .sort((a,b)=>Date.parse(a.slot!.start!)-Date.parse(b.slot!.start!));
-   const order=upcoming[0];
-   if(!order)return reply({message:'No Tesco order with a delivery slot today or later was found.',found:false});
-   return reply({found:true,order:{id:order.id,orderNo:order.orderNo,status:order.status,start:order.slot!.start,end:order.slot!.end}});
-  }
   if(action==='favourites'){const data=await client.favourites({limit:30});return reply({items:data.results.map(x=>({sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}))})}
   if(action==='basket'){const basket=await client.basket.get();return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,cost:x.cost})),guidePrice:basket.guidePrice})}
   if(action==='product'){const sku=req.nextUrl.searchParams.get('sku')||'';if(!/^\d{6,15}$/.test(sku))return reply({error:'Invalid SKU'},400);const x=await client.getProduct(sku);return reply({product:{sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}})}

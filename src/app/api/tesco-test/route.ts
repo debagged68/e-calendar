@@ -43,56 +43,36 @@ export async function GET(req:NextRequest){
    let names:unknown;
    try{names=JSON.parse(namesRaw)}catch{return reply({error:'Invalid grocery list'},400)}
    if(!Array.isArray(names)||names.length>30||names.some(x=>typeof x!=='string'||x.length<1||x.length>100))return reply({error:'Invalid grocery items'},400);
+   const traceId=crypto.randomUUID().slice(0,8);
+   let stage='favourites-and-last-order';
+   const started=Date.now();
+   console.info('[tesco-matches]',traceId,'start',{itemCount:names.length});
+   try{
    const [fav,last]=await Promise.all([client.favourites({limit:100}),client.orders.lastFulfilled()]);
-   // Compare whole words, never substrings: "oats" must not match "goats".
-   const words=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean).map(w=>w.endsWith('s')&&w.length>3?w.slice(0,-1):w);
-   const variants:Record<string,string[]>={milk:['milk'],oat:['oat','porridge'],egg:['egg'],bread:['bread'],butter:['butter']};
-   const exclusions:Record<string,string[]>={milk:['chocolate','shake','oat','almond','soya','coconut','rice','goat','powder','condensed','evaporated'],oat:['goat','cheese','milk','drink','biscuit','bar']};
-   const score=(query:string,title:string)=>{
-    const q=words(query),t=words(title);
-    if(!q.length)return 0;
-    const hits=q.filter(w=>t.includes(w)||(variants[w]||[]).some(v=>t.includes(v))).length;
-    if(hits!==q.length)return 0;
-    if(q.length===1&&(exclusions[q[0]]||[]).some(w=>t.includes(w)))return 0;
-    return hits/q.length;
-   };
-   type Candidate={sku:string;title:string;price?:{actual?:number|null}|null};
-   const product=(p:Candidate)=>({sku:p.sku,title:p.title,price:p.price?.actual??null});
-   const lastIds=new Set((last?.items||[]).map(x=>String(x.productId||'')).filter(Boolean));
+   console.info('[tesco-matches]',traceId,'sources',{favourites:fav.results.length,lastOrderItems:last?.items?.length??0,elapsedMs:Date.now()-started});
+   const normal=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+   const score=(query:string,title:string)=>{const words=normal(query).split(' ').filter(w=>w.length>1);const t=normal(title);return words.length?words.filter(w=>t.includes(w)).length/words.length:0};
+   const product=(p:{sku:string;title:string;price?:{actual?:number|null}|null})=>({sku:p.sku,title:p.title,price:p.price?.actual??null});
+   const lastIds=new Set((last?.items||[]).map(x=>x.productId).filter((x):x is string=>typeof x==='string'));
    const matches=[];
-   const orderProducts:Candidate[]=[];
-   // Load historical SKUs once per request, not once per grocery item.
-   for(const sku of [...lastIds].slice(0,12)){
-    const known=fav.results.find(x=>x.sku===sku);
-    if(known){orderProducts.push(known);continue}
-    try{orderProducts.push(await client.getProduct(sku))}catch{/* unavailable historical SKU */}
-   }
-   for(const name of names as string[]){
-    // Search more candidates, and fall back to a broader singular form.
-    const query=words(name).join(' ')||name;
-    const found=await client.search(name,{limit:30});
-    const pool:Candidate[]=[...found.results];
-    if(!pool.length||!pool.some(x=>score(name,x.title)>0)){
-     const alternate=query==='milk'?'whole milk':query==='oat'?'porridge oats':query;
-     if(alternate!==name){const retry=await client.search(alternate,{limit:30});pool.push(...retry.results)}
-    }
-    const unique=(xs:Candidate[])=>xs.filter((x,i,a)=>a.findIndex(y=>y.sku===x.sku)===i);
-    const suitable=unique(pool.filter(x=>score(name,x.title)>0));
-    const favourites=unique(fav.results.filter(x=>score(name,x.title)>0)).sort((a,b)=>score(name,b.title)-score(name,a.title));
-    const lastItems=unique([...orderProducts,...pool.filter(x=>lastIds.has(x.sku))].filter(x=>score(name,x.title)>0));
-    // Compare unit prices only when the same measurable pack unit is available.
-    const pack=(title:string)=>{const m=title.toLowerCase().match(/(\d+(?:\.\d+)?)\s*(kg|g|litres?|l|ml)\b/);if(!m)return null;const n=Number(m[1]);const unit=m[2];return {value:n*(unit==='kg'||unit==='l'||unit.startsWith('litre')?1000:1),kind:unit==='kg'||unit==='g'?'weight':'volume'}};
-    const priced=suitable.filter(x=>typeof x.price?.actual==='number'&&x.price.actual>0);
-    const reference=pack(lastItems[0]?.title||favourites[0]?.title||'');
-    const comparable=reference?priced.filter(x=>pack(x.title)?.kind===reference.kind):priced;
-    const cheapest=[...(comparable.length?comparable:priced)].sort((a,b)=>{
-     const pa=pack(a.title),pb=pack(b.title);
-     if(pa&&pb&&pa.kind===pb.kind)return (a.price?.actual??Infinity)/pa.value-(b.price?.actual??Infinity)/pb.value;
-     return (a.price?.actual??Infinity)-(b.price?.actual??Infinity);
-    });
+   for(const name of names){
+    stage='catalogue-search';
+    console.info('[tesco-matches]',traceId,'search',{itemIndex:matches.length,queryLength:name.length});
+    const found=await client.search(name,{limit:20});
+    console.info('[tesco-matches]',traceId,'search-result',{itemIndex:matches.length,count:found.results.length});
+    const suitable=found.results.filter(x=>score(name,x.title)>=0.75);
+    const favourites=fav.results.filter(x=>score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
+    const lastItems=[...fav.results,...found.results].filter(x=>lastIds.has(x.sku)&&score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
+    const cheapest=[...suitable].filter(x=>typeof x.price?.actual==='number').sort((a,b)=>(a.price?.actual??Infinity)-(b.price?.actual??Infinity));
     matches.push({favourite:favourites[0]?product(favourites[0]):null,lastOrder:lastItems[0]?product(lastItems[0]):null,cheapest:cheapest[0]?product(cheapest[0]):null});
    }
-   return reply({matches});
+   console.info('[tesco-matches]',traceId,'complete',{itemCount:matches.length,elapsedMs:Date.now()-started});
+   return reply({matches,traceId});
+   }catch(e){
+    const errorName=e instanceof Error?e.name:typeof e;
+    console.error('[tesco-matches]',traceId,'failed',{stage,errorName,elapsedMs:Date.now()-started});
+    return reply({error:'Tesco matching failed during '+stage+'. Reference '+traceId,traceId},502);
+   }
   }
   if(action==='favourites'){const data=await client.favourites({limit:30});return reply({items:data.results.map(x=>({sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}))})}
   if(action==='basket'){const basket=await client.basket.get();return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,cost:x.cost})),guidePrice:basket.guidePrice})}

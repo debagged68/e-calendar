@@ -116,20 +116,39 @@ export async function POST(req:NextRequest){
    if(authError||!user)return reply({error:'Sign in again'},401);
    try{
     const client=await tesco();
-    const orders=await client.orders.list();
     const localDate=(value:Date)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(value);
     const today=localDate(new Date());
-    const upcoming=orders.filter(o=>o.slot?.start&&o.slot?.end&&Number.isFinite(Date.parse(o.slot.start))&&Number.isFinite(Date.parse(o.slot.end))&&localDate(new Date(o.slot.start))>=today&&Date.parse(o.slot.end)>Date.parse(o.slot.start))
-     .sort((a,b)=>Date.parse(a.slot!.start!)-Date.parse(b.slot!.start!));
+    const endDate=(days:number)=>{const d=new Date();d.setUTCDate(d.getUTCDate()+days);return localDate(d)};
+    // Tesco exposes booked delivery slots separately from completed orders.
+    // A Booked status alone does not prove ownership: ask the user to confirm before writing.
+    const ranges=[{start:today,end:endDate(6)},{start:endDate(7),end:endDate(13)}];
+    const slotResults=await Promise.allSettled(ranges.map(range=>client.slots.list(range)));
+    const slots=slotResults.flatMap(x=>x.status==='fulfilled'?x.value:[])
+      .filter(x=>x.status.toLowerCase()==='booked'&&x.id&&Number.isFinite(Date.parse(x.start))&&Number.isFinite(Date.parse(x.end))&&localDate(new Date(x.start))>=today)
+      .sort((x,y)=>Date.parse(x.start)-Date.parse(y.start));
+    const selectedSlotId=(await req.json().catch(()=>({})))?.slotId as string|undefined;
+    if(slots.length&&!selectedSlotId)return reply({found:false,requiresConfirmation:true,slots:slots.map(x=>({id:x.id,start:x.start,end:x.end})),message:'Tesco reports a booked delivery slot. Confirm the correct reservation to add it to your calendar.'});
+    if(selectedSlotId){
+     const slot=slots.find(x=>x.id===selectedSlotId);
+     if(!slot)return reply({error:'Selected slot is no longer reported as booked. Refresh Find slot.'},409);
+     const stableId='reserved-slot:'+slot.id;
+     const existing=await db.from('family_events').select('id').eq('tesco_order_id',stableId).maybeSingle();
+     if(existing.error)throw existing.error;
+     const payload={title:'Tesco delivery (reserved)',event_date:localDate(new Date(slot.start)),start_at:new Date(slot.start).toISOString(),end_at:new Date(slot.end).toISOString(),important:false};
+     const result=existing.data?await db.from('family_events').update(payload).eq('id',existing.data.id).select('id').single():await db.from('family_events').insert({...payload,tesco_order_id:stableId,created_by:user.id}).select('id').single();
+     if(result.error)throw result.error;
+     return reply({found:true,reserved:true,eventId:result.data.id,orderNo:'Reserved slot',start:slot.start,end:slot.end,created:!existing.data,message:existing.data?'Reserved Tesco slot updated in calendar.':'Reserved Tesco slot added to calendar.'});
+    }
+    const orders=await client.orders.list();
+    const upcoming=orders.filter(o=>o.slot?.start&&o.slot?.end&&Number.isFinite(Date.parse(o.slot.start))&&Number.isFinite(Date.parse(o.slot.end))&&localDate(new Date(o.slot.start))>=today)
+      .sort((x,y)=>Date.parse(x.slot!.start!)-Date.parse(y.slot!.start!));
     const order=upcoming[0];
-    if(!order)return reply({found:false,message:'No Tesco order with a delivery slot today or later was found.'});
+    if(!order)return reply({found:false,message:'No booked delivery slot was returned for the next 14 days, and no upcoming confirmed order was found.'});
     if(!order.id)return reply({error:'Tesco order has no stable identifier; calendar event not created.'},422);
     const start=order.slot!.start!,end=order.slot!.end!;
-    const date=localDate(new Date(start));
-    const title='Tesco delivery';
     const existing=await db.from('family_events').select('id').eq('tesco_order_id',order.id).maybeSingle();
     if(existing.error)throw existing.error;
-    const payload={title,event_date:date,start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),important:false};
+    const payload={title:'Tesco delivery',event_date:localDate(new Date(start)),start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),important:false};
     const result=existing.data?await db.from('family_events').update(payload).eq('id',existing.data.id).select('id').single():await db.from('family_events').insert({...payload,tesco_order_id:order.id,created_by:user.id}).select('id').single();
     if(result.error)throw result.error;
     return reply({found:true,eventId:result.data.id,orderNo:order.orderNo,start,end,created:!existing.data,message:existing.data?'Tesco delivery updated in Family calendar.':'Tesco delivery added to Family calendar.'});

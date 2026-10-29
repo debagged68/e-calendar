@@ -51,8 +51,17 @@ export async function GET(req:NextRequest){
    const [fav,last]=await Promise.all([client.favourites({limit:100}),client.orders.lastFulfilled()]);
    console.info('[tesco-matches]',traceId,'sources',{favourites:fav.results.length,lastOrderItems:last?.items?.length??0,elapsedMs:Date.now()-started});
    // Pure local scoring: no changes to Tesco requests, limits or order lookups.
-   const tokens=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
-   const canonical=(word:string)=>({oats:'oat',eggs:'egg',tomatoes:'tomato',potatoes:'potato',bananas:'banana'} as Record<string,string>)[word]||word;
+   // Normalise possessives and common plural endings without corrupting words like hummus.
+   const singular=(word:string)=>{
+    const irregular:Record<string,string>={tomatoes:'tomato',potatoes:'potato',berries:'berry',cherries:'cherry',loaves:'loaf',leaves:'leaf'};
+    if(irregular[word])return irregular[word];
+    if(word.length>4&&word.endsWith('ies'))return word.slice(0,-3)+'y';
+    if(word.length>4&&/(ches|shes|xes|zzes)$/.test(word))return word.slice(0,-2);
+    if(word.length>3&&word.endsWith('s')&&!/(ss|us|is|ous)$/.test(word))return word.slice(0,-1);
+    return word;
+   };
+   const tokens=(value:string)=>value.toLowerCase().replace(/[’‘]/g,"'").replace(/([a-z])'s\b/g,'$1s').replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
+   const canonical=(word:string)=>singular(word);
    const synonyms:Record<string,string[]>={oat:['porridge'],porridge:['oat'],courgette:['zucchini'],zucchini:['courgette'],coriander:['cilantro'],cilantro:['coriander']};
    const score=(query:string,title:string)=>{
     const q=tokens(query).map(canonical).filter(w=>w.length>1&&!['of','the','for','and','with','from','a','an'].includes(w));
@@ -76,8 +85,16 @@ export async function GET(req:NextRequest){
     let searchResults:Awaited<ReturnType<typeof client.search>>['results']=[];
     let searchFailed=false;
     try{
-     const found=await client.search(name,{limit:20});
-     searchResults=found.results;
+     const variants=[name];
+     const normalized=tokens(name).map(canonical).join(' ');
+     if(normalized&&normalized!==name.toLowerCase())variants.push(normalized);
+     const withoutPossessive=name.replace(/[’']/g,'');
+     if(withoutPossessive!==name&&!variants.includes(withoutPossessive))variants.push(withoutPossessive);
+     const all=await Promise.allSettled(variants.map(query=>client.search(query,{limit:20})));
+     const unique=new Map<string,(typeof searchResults)[number]>();
+     for(const result of all)if(result.status==='fulfilled')for(const item of result.value.results)unique.set(item.sku,item);
+     if(!all.some(result=>result.status==='fulfilled'))throw Error('All Tesco catalogue searches failed');
+     searchResults=[...unique.values()];
     }catch(searchError){
      searchFailed=true;
      const errorName=searchError instanceof Error?searchError.name:typeof searchError;

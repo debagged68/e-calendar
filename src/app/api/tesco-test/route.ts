@@ -73,14 +73,23 @@ export async function GET(req:NextRequest){
    for(const name of names){
     stage='catalogue-search';
     console.info('[tesco-matches]',traceId,'search',{itemIndex:matches.length,queryLength:name.length});
-    const found=await client.search(name,{limit:20});
-    console.info('[tesco-matches]',traceId,'search-result',{itemIndex:matches.length,count:found.results.length});
-    const suitable=found.results.filter(x=>score(name,x.title)>=0.75);
+    let searchResults:Awaited<ReturnType<typeof client.search>>['results']=[];
+    let searchFailed=false;
+    try{
+     const found=await client.search(name,{limit:20});
+     searchResults=found.results;
+    }catch(searchError){
+     searchFailed=true;
+     const errorName=searchError instanceof Error?searchError.name:typeof searchError;
+     console.error('[tesco-matches]',traceId,'catalogue-search-failed',{itemIndex:matches.length,errorName});
+    }
+    console.info('[tesco-matches]',traceId,'search-result',{itemIndex:matches.length,count:searchResults.length,searchFailed});
+    const suitable=searchResults.filter(x=>score(name,x.title)>=0.75);
     const favourites=fav.results.filter(x=>score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
-    const lastItems=[...fav.results,...found.results].filter(x=>lastIds.has(x.sku)&&score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
+    const lastItems=[...fav.results,...searchResults].filter(x=>lastIds.has(x.sku)&&score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
     const cheapest=[...suitable].filter(x=>typeof x.price?.actual==='number').sort((a,b)=>(a.price?.actual??Infinity)-(b.price?.actual??Infinity));
-    console.info('[tesco-matches]',traceId,'ranked',{itemIndex:matches.length,catalogueCandidates:found.results.length,suitable:suitable.length,favourites:favourites.length,lastOrder:lastItems.length});
-    matches.push({favourite:favourites[0]?product(favourites[0]):null,lastOrder:lastItems[0]?product(lastItems[0]):null,cheapest:cheapest[0]?product(cheapest[0]):null});
+    console.info('[tesco-matches]',traceId,'ranked',{itemIndex:matches.length,catalogueCandidates:searchResults.length,suitable:suitable.length,favourites:favourites.length,lastOrder:lastItems.length});
+    matches.push({favourite:favourites[0]?product(favourites[0]):null,lastOrder:lastItems[0]?product(lastItems[0]):null,cheapest:cheapest[0]?product(cheapest[0]):null,searchFailed});
    }
    console.info('[tesco-matches]',traceId,'complete',{itemCount:matches.length,elapsedMs:Date.now()-started});
    return reply({matches,traceId});

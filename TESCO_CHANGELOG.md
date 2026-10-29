@@ -36,3 +36,9 @@
 - Added `scripts/tesco-connect.mjs`: refresh using local Chrome, fall back to interactive Tesco login, write validated session directly to AWS Secrets Manager.
 - Added `npm run tesco:connect` and setup/security guide `docs/tesco-reconnect.md`.
 - This is a laptop-run helper, **not** a calendar-browser button or unattended AWS renewal. Needs scoped AWS credentials and local Playwright installation; untested on physical Mac/Windows machines.
+
+## Catalogue search partial failure (reference 9db42823)
+- Observed: valid favourites (100), last order (58), two successful catalogue searches, third search threw an opaque error named `C`.
+- Change: isolate each catalogue search failure; continue matching remaining items, retaining favourites and previous-order matches. Return `searchFailed` per item and log index/error name without customer data.
+- No changes to authentication, Tesco request counts/limits, product ranking or basket mutation.
+- Awaiting Amplify build and live verification.

@@ -50,8 +50,23 @@ export async function GET(req:NextRequest){
    try{
    const [fav,last]=await Promise.all([client.favourites({limit:100}),client.orders.lastFulfilled()]);
    console.info('[tesco-matches]',traceId,'sources',{favourites:fav.results.length,lastOrderItems:last?.items?.length??0,elapsedMs:Date.now()-started});
-   const normal=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-   const score=(query:string,title:string)=>{const words=normal(query).split(' ').filter(w=>w.length>1);const t=normal(title);return words.length?words.filter(w=>t.includes(w)).length/words.length:0};
+   // Pure local scoring: no changes to Tesco requests, limits or order lookups.
+   const tokens=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean);
+   const canonical=(word:string)=>({oats:'oat',eggs:'egg',tomatoes:'tomato',potatoes:'potato',bananas:'banana'} as Record<string,string>)[word]||word;
+   const synonyms:Record<string,string[]>={oat:['porridge'],porridge:['oat'],courgette:['zucchini'],zucchini:['courgette'],coriander:['cilantro'],cilantro:['coriander']};
+   const score=(query:string,title:string)=>{
+    const q=tokens(query).map(canonical).filter(w=>w.length>1);
+    const t=tokens(title).map(canonical);
+    if(!q.length)return 0;
+    // Avoid confusing plain milk with plant drinks, flavoured milk or milk powder.
+    if(q.length===1&&q[0]==='milk'&&['oat','almond','soya','soy','coconut','rice','goat','chocolate','strawberry','shake','powder','condensed','evaporated'].some(w=>t.includes(w)))return 0;
+    // Reject unrelated oat products when the request is simply for oats.
+    if(q.length===1&&q[0]==='oat'&&['milk','drink','biscuit','bar','cheese','goat'].some(w=>t.includes(w)))return 0;
+    const hits=q.filter(w=>t.includes(w)||(synonyms[w]||[]).some(v=>t.includes(v))).length;
+    if(hits!==q.length)return 0;
+    const exact=q.filter(w=>t.includes(w)).length;
+    return 0.8+0.2*exact/q.length;
+   };
    const product=(p:{sku:string;title:string;price?:{actual?:number|null}|null})=>({sku:p.sku,title:p.title,price:p.price?.actual??null});
    const lastIds=new Set((last?.items||[]).map(x=>x.productId).filter((x):x is string=>typeof x==='string'));
    const matches=[];
@@ -64,6 +79,7 @@ export async function GET(req:NextRequest){
     const favourites=fav.results.filter(x=>score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
     const lastItems=[...fav.results,...found.results].filter(x=>lastIds.has(x.sku)&&score(name,x.title)>=0.75).sort((a,b)=>score(name,b.title)-score(name,a.title));
     const cheapest=[...suitable].filter(x=>typeof x.price?.actual==='number').sort((a,b)=>(a.price?.actual??Infinity)-(b.price?.actual??Infinity));
+    console.info('[tesco-matches]',traceId,'ranked',{itemIndex:matches.length,catalogueCandidates:found.results.length,suitable:suitable.length,favourites:favourites.length,lastOrder:lastItems.length});
     matches.push({favourite:favourites[0]?product(favourites[0]):null,lastOrder:lastItems[0]?product(lastItems[0]):null,cheapest:cheapest[0]?product(cheapest[0]):null});
    }
    console.info('[tesco-matches]',traceId,'complete',{itemCount:matches.length,elapsedMs:Date.now()-started});

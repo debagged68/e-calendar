@@ -4,9 +4,11 @@ import Link from 'next/link';
 import {createClient,type User} from '@supabase/supabase-js';
 const db=process.env.NEXT_PUBLIC_SUPABASE_URL&&process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY):null;
 type BasketItem={sku:string;quantity:number;cost?:number};
-type Order={orderNo:string;start:string;end:string};\ntype Slot={id:string;start:string;end:string};
+type Order={orderNo:string;start:string;end:string};
+type Slot={id:string;start:string;end:string};
 export default function TescoBasket(){
- const [slots,setSlots]=useState<Slot[]>([]);\n const [user,setUser]=useState<User|null>(null),[ready,setReady]=useState(false),[loading,setLoading]=useState(false),[finding,setFinding]=useState(false),[items,setItems]=useState<BasketItem[]>([]),[guidePrice,setGuidePrice]=useState<number|null>(null),[order,setOrder]=useState<Order|null>(null),[message,setMessage]=useState('');
+ const [slots,setSlots]=useState<Slot[]>([]);
+ const [user,setUser]=useState<User|null>(null),[ready,setReady]=useState(false),[loading,setLoading]=useState(false),[finding,setFinding]=useState(false),[items,setItems]=useState<BasketItem[]>([]),[guidePrice,setGuidePrice]=useState<number|null>(null),[order,setOrder]=useState<Order|null>(null),[message,setMessage]=useState('');
  useEffect(()=>{if(!db){setReady(true);return}db.auth.getUser().then(x=>{setUser(x.data.user);setReady(true)}).catch(()=>setReady(true))},[]);
  async function token(){if(!db)throw Error('Not configured');const r=await db.auth.getSession();if(!r.data.session)throw Error('Sign in on the chalkboard first.');return r.data.session.access_token}
  async function load(){setLoading(true);setMessage('');try{const t=await token();const r=await fetch('/api/tesco-test?action=basket',{headers:{Authorization:'Bearer '+t},cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to read Tesco basket');setItems(d.items||[]);setGuidePrice(typeof d.guidePrice==='number'?d.guidePrice:null)}catch(e){setMessage(e instanceof Error?e.message:'Unable to read basket')}finally{setLoading(false)}}

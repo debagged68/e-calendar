@@ -39,8 +39,8 @@ export async function GET(req:NextRequest){
   const client=await tesco();
   const action=req.nextUrl.searchParams.get('action');
   if(action==='favourites'){const data=await client.favourites({limit:30});return reply({items:data.results.map(x=>({sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}))})}
-  if(action==='basket'){const basket=await client.basket.get();return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,available:x.available,cost:x.cost})),guidePrice:basket.guidePrice})}
-  if(action==='product'){const sku=req.nextUrl.searchParams.get('sku')||'';if(!/^\d{6,15}$/.test(sku))return reply({error:'Invalid SKU'},400);const x=await client.getProduct(sku);return reply({product:{sku:x.sku,title:x.title,available:x.available,price:x.price,imageUrl:x.imageUrl}})}
+  if(action==='basket'){const basket=await client.basket.get();return reply({items:basket.items.map(x=>({sku:x.sku,quantity:x.quantity,cost:x.cost})),guidePrice:basket.guidePrice})}
+  if(action==='product'){const sku=req.nextUrl.searchParams.get('sku')||'';if(!/^\d{6,15}$/.test(sku))return reply({error:'Invalid SKU'},400);const x=await client.getProduct(sku);return reply({product:{sku:x.sku,title:x.title,price:x.price,imageUrl:x.imageUrl}})}
   return reply({error:'Unknown test operation'},400);
  }catch(e){return failure(e)}
 }

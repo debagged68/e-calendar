@@ -40,6 +40,7 @@ else {
   console.log('Both calendar users can now match products. No basket changes were made.');
  }catch(e){
   console.error('Tesco connection failed:',e instanceof Error?e.message:String(e));
+  if(e instanceof Error)console.error('Failure location:',e.stack?.split('\n').slice(0,7).join('\n'));
   console.error('AWS secret was not intentionally changed on failure. Check AWS credentials, Chrome and Tesco sign-in.');
   process.exitCode=1;
  }

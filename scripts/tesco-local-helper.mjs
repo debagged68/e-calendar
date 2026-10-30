@@ -31,7 +31,7 @@ const server=http.createServer((req,res)=>{
   if(running){res.writeHead(409);res.end(JSON.stringify({error:'Reconnection is already running on this computer.'}));return;}
   running=true;lastResult='running';
   const child=spawn(process.execPath,['scripts/tesco-connect.mjs','refresh'],{cwd:process.cwd(),env:process.env,stdio:'inherit'});
-  child.once('error',e=>{running=false;lastResult='failed';console.error('Cannot launch Tesco helper:,e.message)});
+  child.once('error',e=>{running=false;lastResult='failed';console.error('Cannot launch Tesco helper:',e.message)});
   child.once('exit',code=>{running=false;lastResult=code===0?'success':'failed';console.log('Tesco reconnect finished with exit code',code)});
   res.writeHead(202);res.end(JSON.stringify({started:true,message:'Tesco browser reconnection started on this computer. Follow Chrome and terminal prompts; refresh product matches when complete.'}));
  });

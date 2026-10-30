@@ -4,6 +4,7 @@
 import { SecretsManagerClient, GetSecretValueCommand, PutSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { Basketeer, MemoryTokenStore } from 'basketeer';
 import { BrowserAuthBackend } from 'basketeer/auth/browser/playwright';
+import { interactiveTescoLogin } from './tesco-interactive-login.mjs';
 
 const region=process.env.AWS_REGION||'eu-north-1';
 const secretId=process.env.TESCO_SECRET_ID||'e-calendar/tesco-session';
@@ -28,10 +29,10 @@ else {
   let session;
   if(old?.accessToken&&old?.cookies&&old?.customerUuid){
    try{session=await authBackend.refresh(old);console.log('Tesco browser session renewed.')}
-   catch(e){console.warn('Renewal unavailable; opening Tesco login.');session=await client.login()}
+   catch(e){console.warn('Renewal unavailable; opening Tesco login.');session=await interactiveTescoLogin()}
   }else{
    console.log('Opening Tesco login in Chrome...');
-   session=await client.login();
+   session=await interactiveTescoLogin();
   }
   if(!session?.accessToken||!session?.customerUuid||!session?.cookies||!session?.accessTokenExpiry||session.accessTokenExpiry<=Date.now()+30000)throw Error('Tesco did not return a valid fresh session; AWS was not changed.');
   await aws.send(new PutSecretValueCommand({SecretId:secretId,SecretString:JSON.stringify(session)}));

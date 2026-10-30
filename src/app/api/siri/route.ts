@@ -24,27 +24,19 @@ function localDateTime(date:string,time:string){
 }
 export async function POST(request:NextRequest){
  try{
-  const expected=process.env.SIRI_SHORTCUT_KEY;
-  const provided=request.headers.get('x-siri-key');
-  if(!expected||!provided||provided.length!==expected.length){
-   return answer('Siri access is not configured or the key is incorrect.',false,401);
-  }
-  const crypto=await import('node:crypto');
-  if(!crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(provided))){
-   return answer('Siri access is not configured or the key is incorrect.',false,401);
-  }
+  const bearer=request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
+  if(!bearer)return answer('Please sign in to E-Calendar and reconnect your Siri Shortcut.',false,401);
   const body=await request.json().catch(()=>null) as {text?:unknown;requestId?:unknown}|null;
   const description=typeof body?.text==='string'?body.text.trim():'';
   if(!description||description.length>1500)return answer('Please say a shorter instruction.',false,400);
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const email=process.env.SIRI_SUPABASE_EMAIL;
-  const password=process.env.SIRI_SUPABASE_PASSWORD;
-  if(!url||!key||!email||!password)return answer('Siri access needs to be configured on the calendar server.',false,503);
-  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-  const signed=await db.auth.signInWithPassword({email,password});
-  if(signed.error||!signed.data.session||!signed.data.user)return answer('Siri could not sign in to the family calendar.',false,503);
-  const token=signed.data.session.access_token;
+  if(!url||!key)return answer('Calendar configuration is unavailable.',false,503);
+  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:'Bearer '+bearer}}});
+  const auth=await db.auth.getUser(bearer);
+  if(auth.error||!auth.data.user)return answer('Please sign in to E-Calendar and reconnect your Siri Shortcut.',false,401);
+  const user=auth.data.user;
+  const token=bearer;
   const requestId=typeof body?.requestId==='string'&&/^[a-zA-Z0-9_-]{8,100}$/.test(body.requestId)?body.requestId:null;
   // A Shortcut can retry a network request. Reject the same request ID for a short period
   // only when a durable deduplication store is configured; otherwise clients must not retry automatically.
@@ -98,7 +90,7 @@ export async function POST(request:NextRequest){
    if(!validDate(endDate)||(endTime&&!validTime(endTime)))return answer('I could not determine the event end time.',false,422);
    const end=endTime?localDateTime(endDate,endTime):new Date(start.getTime()+3600000);
    if(Number.isNaN(start.getTime())||end<=start)return answer('The event end time must be after its start.',false,422);
-   const created=await db.from('family_events').insert({title:event.title.trim(),event_date:event.date,start_at:start.toISOString(),end_at:end.toISOString(),important:false,created_by:signed.data.user.id});
+   const created=await db.from('family_events').insert({title:event.title.trim(),event_date:event.date,start_at:start.toISOString(),end_at:end.toISOString(),important:false,created_by:user.id});
    if(created.error)throw created.error;
    const spokenDate=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/London'}).format(start);
    return answer('Added '+event.title.trim()+' to the family calendar for '+spokenDate+' at '+event.time+'.',true,200,{intent:'appointment',requestId});

@@ -10,6 +10,7 @@ const loginUrl='https://www.tesco.com/account/login';
 const groceriesUrl='https://www.tesco.com/groceries/';
 const refreshUrl='https://www.tesco.com/account/auth/en-GB/refresh-token?soft-refresh=false&from=https%3A%2F%2Fwww.tesco.com%2Fshop%2Fen-GB%2Flanding%2Fgroceries';
 const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
+const isFresh=(session)=>Boolean(session?.accessTokenExpiry && session.accessTokenExpiry>Date.now()+60_000);
 export async function interactiveTescoLogin(){
  if(!input.isTTY)throw Error('Interactive Tesco login requires a Terminal window.');
  const {chromium}=await import('playwright');
@@ -26,7 +27,7 @@ export async function interactiveTescoLogin(){
   finally{rl.close()}
   const harvest=async()=>{
    const cookies=await context.cookies();
-   try{return sessionFromCookies(cookies)}
+   try{const candidate=sessionFromCookies(cookies);return isFresh(candidate)?candidate:null}
    catch{return null}
   };
   // Tesco may set OAuth cookies only after its groceries redirect or token refresh.
@@ -44,7 +45,8 @@ export async function interactiveTescoLogin(){
   if(!session){
    const names=[...new Set((await context.cookies()).map(c=>c.name))];
    console.error('Tesco authentication cookies present:',{oauth:names.includes('OAuth.AccessToken'),uuid:names.includes('UUID')});
-   throw Error('Tesco login completed in Chrome, but the required session cookies were not available. No AWS changes were made.');
+   console.error('No fresh access token was available after login and browser refresh.');
+   throw Error('Tesco login completed in Chrome, but a fresh usable session was not available. No AWS changes were made.');
   }
   return session;
  }finally{await context.close().catch(()=>{})}

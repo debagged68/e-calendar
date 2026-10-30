@@ -52,8 +52,14 @@ export default function TescoReconnect(){
      try{
       const r=await fetch(helper+'/status',{signal:controller.signal,cache:'no-store'});
       if(r.ok){
-       const data=await r.json() as {status:string};
-       if(data.status==='failed'){setState('failed');setError('Tesco sign-in did not complete. Try reconnecting.');return}
+       const data=await r.json() as {status:string;error?:string|null};
+       if(data.status==='failed'){
+        setState('failed');
+        if(data.error==='aws-login-expired')setError('Your AWS login on this Mac has expired. Open Terminal and run: aws login --profile oast-cottage. Complete AWS sign-in, then select Try again. Your Tesco login is not the problem.');
+        else if(data.error==='tesco-interactive-required')setError('Tesco needs an interactive sign-in. On your Mac, open Terminal and run: cd ~/e-calendar && AWS_PROFILE=oast-cottage npm run tesco:connect -- login. Once AWS Tesco session updated appears, select Try again.');
+        else setError('Tesco reconnection failed. Check the Tesco helper log on your Mac for the specific error, then try again.');
+        return
+       }
       }
      }catch{ /* Old helpers do not provide /status; keep checking Tesco directly. */ }
     }

@@ -195,3 +195,16 @@ mask-image:linear-gradient(to bottom,#000 0px,#000 calc(var(--calendar-start) + 
 @media(min-width:851px){.paper-shell.fit-screen .daily-strip{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(175px,.55fr)}.paper-shell.fit-screen .grocery-highlight{padding:8px}.paper-shell.fit-screen .grocery-highlight .daily-symbol{flex-basis:28px;width:28px;height:28px;font-size:18px}.paper-shell.fit-screen .grocery-highlight .grocery-date{font-size:13px;margin:2px 0 3px}}
 @media(min-width:651px) and (max-width:850px){.paper-shell .daily-strip{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(150px,.6fr)}}
 @media(max-width:650px){.paper-shell .daily-strip{grid-template-columns:1fr}}
+
+@media(max-width:650px){
+.quick-action-page{padding:8px!important}
+.quick-action-card{padding:12px!important}
+.quick-action-card>h1{font-size:24px!important;margin:0 0 4px!important}
+.quick-action-intro{font-size:13px!important;line-height:1.25!important;margin:0 0 8px!important}
+.quick-action-card label{font-size:15px!important}
+.quick-action-description{height:72px!important;padding:8px!important;font-size:16px!important;margin:5px 0!important}
+.quick-action-card button{min-height:44px!important;font-size:16px!important;margin-top:6px!important}
+.quick-action-hint{font-size:12px!important;line-height:1.2!important;margin:5px 0!important}
+.quick-action-links{margin-top:10px!important;gap:8px!important;flex-wrap:nowrap!important}
+.quick-action-links a{flex:1;text-align:center;font-size:13px!important;padding:10px 4px!important;margin-bottom:0!important}
+}

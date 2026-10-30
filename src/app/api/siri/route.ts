@@ -24,36 +24,22 @@ function localDateTime(date:string,time:string){
 }
 export async function POST(request:NextRequest){
  try{
-  const body=await request.json().catch(()=>null) as {text?:unknown;refreshToken?:unknown;requestId?:unknown}|null;
+  const body=await request.json().catch(()=>null) as {text?:unknown;requestId?:unknown}|null;
   const description=typeof body?.text==='string'?body.text.trim():'';
   if(!description||description.length>1500)return answer('Please say a shorter instruction.',false,400);
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key)return answer('Calendar configuration is unavailable.',false,503);
+  // Shortcuts requests do not inherit Safari's logged-in Supabase session.
+  const token=request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
+  if(!token)return answer('Not logged in.',false,401);
   const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-  const refreshToken=typeof body?.refreshToken==='string'?body.refreshToken:'';
-  const bearer=request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
-  let token=bearer||'';
-  let nextRefreshToken:string|undefined;
-  let userId='';
-  if(refreshToken){
-   const refreshed=await db.auth.refreshSession({refresh_token:refreshToken});
-   if(refreshed.error||!refreshed.data.session||!refreshed.data.user)return answer('Please sign in to E-Calendar and link Siri again.',false,401);
-   token=refreshed.data.session.access_token;
-   nextRefreshToken=refreshed.data.session.refresh_token;
-   userId=refreshed.data.user.id;
-  }else if(bearer){
-   const auth=await db.auth.getUser(bearer);
-   if(auth.error||!auth.data.user)return answer('Please sign in to E-Calendar and link Siri again.',false,401);
-   userId=auth.data.user.id;
-  }else return answer('Please sign in to E-Calendar and link Siri first.',false,401);
-  const user={id:userId};
-  // Authenticate all database writes as the existing Supabase user, subject to RLS.
+  const {data:{user},error}=await db.auth.getUser(token);
+  if(error||!user)return answer('Not logged in.',false,401);
   const authDb=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:'Bearer '+token}}});
-  const reply=(message:string,ok:boolean,status=200,extra:Record<string,unknown>={})=>answer(message,ok,status,{...extra,...(nextRefreshToken?{refreshToken:nextRefreshToken}:{})});
+  const reply=answer;
   const requestId=typeof body?.requestId==='string'&&/^[a-zA-Z0-9_-]{8,100}$/.test(body.requestId)?body.requestId:null;
-  // A Shortcut can retry a network request. Reject the same request ID for a short period
-  // only when a durable deduplication store is configured; otherwise clients must not retry automatically.
+  // Clients should not retry automatically; writes are not idempotent.
   const headers={authorization:'Bearer '+token,'content-type':'application/json'};
   const classified=await classify(new NextRequest(request.url,{method:'POST',headers,body:JSON.stringify({description})}));
   const classification=await classified.json() as {intent?:string;items?:{name:string;quantity:number}[];error?:string};
@@ -112,6 +98,6 @@ export async function POST(request:NextRequest){
   return reply('I could not tell whether that was an event or groceries. Please rephrase it.',false,422);
  }catch(e){
   console.error('Siri shortcut request failed',e instanceof Error?e.name:'Unknown');
-  return reply('Sorry, I could not save that. Please try again later.',false,500);
+  return answer('Sorry, I could not save that. Please try again later.',false,500);
  }
 }

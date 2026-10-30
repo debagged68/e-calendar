@@ -11,7 +11,17 @@ function answer(message:string,ok:boolean,status=200,extra:Record<string,unknown
 }
 function validDate(value:string){return /^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T12:00:00Z'))}
 function validTime(value:string){return /^([01]\d|2[0-3]):[0-5]\d$/.test(value)}
-function localDateTime(date:string,time:string){return new Date(date+'T'+time+':00+00:00')}
+function localDateTime(date:string,time:string){
+ const wall=Date.parse(date+'T'+time+':00Z');
+ const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+ let utc=wall;
+ for(let i=0;i<3;i++){
+  const parts=Object.fromEntries(fmt.formatToParts(new Date(utc)).map(p=>[p.type,p.value]));
+  const shown=Date.UTC(Number(parts.year),Number(parts.month)-1,Number(parts.day),Number(parts.hour),Number(parts.minute));
+  utc+=wall-shown;
+ }
+ return new Date(utc);
+}
 export async function POST(request:NextRequest){
  try{
   const expected=process.env.SIRI_SHORTCUT_KEY;
@@ -90,7 +100,7 @@ export async function POST(request:NextRequest){
    if(Number.isNaN(start.getTime())||end<=start)return answer('The event end time must be after its start.',false,422);
    const created=await db.from('family_events').insert({title:event.title.trim(),event_date:event.date,start_at:start.toISOString(),end_at:end.toISOString(),important:false,created_by:signed.data.user.id});
    if(created.error)throw created.error;
-   const spokenDate=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(start);
+   const spokenDate=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/London'}).format(start);
    return answer('Added '+event.title.trim()+' to the family calendar for '+spokenDate+' at '+event.time+'.',true,200,{intent:'appointment',requestId});
   }
   return answer('I could not tell whether that was an event or groceries. Please rephrase it.',false,422);

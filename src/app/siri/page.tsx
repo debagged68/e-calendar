@@ -23,5 +23,5 @@ export default function SiriPage(){
   }
   void run();
  },[]);
- return <main style={{fontFamily:'Arial',padding:30,textAlign:'center'}}><h1>E-Calendar Siri</h1><p role="status" style={{fontSize:24}}>{message}</p><p>Safari may require a tap to enable spoken audio.</p><a href="/add">Quick Action</a></main>;
+ return <main style={{fontFamily:'Arial',padding:30,textAlign:'center'}}><h1>E-Calendar Siri</h1><p role="status" style={{fontSize:24}}>{message}</p><p>Safari may require a tap to enable spoken audio.</p><nav aria-label="Next action" style={{display:"flex",justifyContent:"center",flexWrap:"wrap",gap:12,marginTop:20}}><a href="/basket" style={{display:"inline-block",padding:"14px 18px",borderRadius:12,background:"#24634f",color:"white",fontWeight:700,textDecoration:"none"}}>✎ Shopping Whiteboard</a><a href="/add" style={{display:"inline-block",padding:"14px 18px",borderRadius:12,background:"#e1eee5",color:"#194a37",fontWeight:700,textDecoration:"none"}}>Quick Action</a></nav></main>;
 }

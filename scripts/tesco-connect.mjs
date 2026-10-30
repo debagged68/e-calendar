@@ -2,7 +2,7 @@
 // Runs on either user's Mac or Windows laptop. No Tesco credentials are sent to our app.
 // Chrome authenticates directly with Tesco; only the resulting session is stored in AWS.
 import { SecretsManagerClient, GetSecretValueCommand, PutSecretValueCommand } from '@aws-sdk/client-secrets-manager';
-import { Basketeer, MemoryTokenStore } from 'basketeer';
+
 import { BrowserAuthBackend } from 'basketeer/auth/browser/playwright';
 import { interactiveTescoLogin } from './tesco-interactive-login.mjs';
 
@@ -23,13 +23,11 @@ else {
     if(e?.name!=='ResourceNotFoundException')throw e;
    }
   }
-  const store=new MemoryTokenStore(old);
   const authBackend=new BrowserAuthBackend();
-  const client=new Basketeer({store,authBackend});
   let session;
   if(old?.accessToken&&old?.cookies&&old?.customerUuid){
    try{session=await authBackend.refresh(old);console.log('Tesco browser session renewed.')}
-   catch(e){console.warn('Renewal unavailable; opening Tesco login.');session=await interactiveTescoLogin()}
+   catch(e){console.warn('Renewal unavailable:',e instanceof Error?e.message:String(e));if(!process.stdin.isTTY)throw Error('TESCO_INTERACTIVE_REQUIRED: Tesco needs an interactive sign-in. On this Mac, open Terminal and run: cd ~/e-calendar && AWS_PROFILE=oast-cottage npm run tesco:connect -- login');console.warn('Opening Tesco login.');session=await interactiveTescoLogin()}
   }else{
    console.log('Opening Tesco login in Chrome...');
    session=await interactiveTescoLogin();
@@ -39,7 +37,11 @@ else {
   console.log('AWS Tesco session updated. Expires:',new Date(session.accessTokenExpiry).toLocaleString('en-GB'));
   console.log('Both calendar users can now match products. No basket changes were made.');
  }catch(e){
-  console.error('Tesco connection failed:',e instanceof Error?e.message:String(e));
+  const awsExpired=e?.name==='CredentialsProviderError'||/session has expired|resolveLoginCredentials|LoginCredentialsFetcher/i.test(String(e?.message||'')+' '+String(e?.stack||''));
+  if(awsExpired){
+   console.error('AWS_LOGIN_EXPIRED: Your AWS login has expired. On this Mac run: aws login --profile oast-cottage');
+   console.error('Then reconnect Tesco. Tesco credentials are not the problem.');
+  }else console.error('Tesco connection failed:',e instanceof Error?e.message:String(e));
   if(e instanceof Error)console.error('Failure location:',e.stack?.split('\n').slice(0,7).join('\n'));
   console.error('AWS secret was not intentionally changed on failure. Check AWS credentials, Chrome and Tesco sign-in.');
   process.exitCode=1;

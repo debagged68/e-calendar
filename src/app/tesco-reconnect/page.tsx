@@ -27,11 +27,6 @@ export default function TescoReconnect(){
     return r.ok;
    }catch{return false}
   }
-  async function check(){
-   if(cancelled)return;
-   if(await connected()){if(!cancelled)window.location.replace(safeReturnPath());return}
-   if(!cancelled)timer=setTimeout(check,2500);
-  }
   async function run(){
    // A successful live basket read is the source of truth, not the helper status.
    if(await connected()){if(!cancelled)window.location.replace(safeReturnPath());return}
@@ -44,8 +39,9 @@ export default function TescoReconnect(){
     setState('waiting');
    }catch{
     if(cancelled)return;
-    setState('waiting');
-    setError('Waiting for Tesco to reconnect. If you have already signed in, the page will check automatically.');
+    setState('failed');
+    setError('Could not contact the Tesco helper on this computer. The Chrome login window cannot open until the local helper is running. Update and restart the Tesco helper on your Mac, then select Try again.');
+    return;
    }
    const start=Date.now();
    async function poll(){

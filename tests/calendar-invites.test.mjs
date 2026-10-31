@@ -24,3 +24,13 @@ test('retry payload stays identical and bad end times are rejected',()=>{
  assert.equal(calendarInvitation(invite,'sender@example.com'),calendarInvitation(invite,'sender@example.com'));
  assert.throws(()=>calendarInvitation({...invite,event_snapshot:{...invite.event_snapshot,start_at:'2026-11-02T10:00:00Z',end_at:'2026-11-02T09:00:00Z'}},'sender@example.com'));
 });
+test('Microsoft MIME email preserves calendar request and prevents subject header injection',async()=>{
+ const {invitationMime}=await import('../supabase/functions/calendar-invites/calendar.ts');
+ const mime=invitationMime({...invite,event_snapshot:{...invite.event_snapshot,title:'🛒 Milk\r\nBcc: nobody@example.com'}},'sender@hotmail.com');
+ assert.match(mime,/Content-Type: text\/calendar; charset=UTF-8; method=REQUEST/);
+ assert.match(mime,/From: sender@hotmail.com\r\n/);
+ assert.ok(!mime.includes('\r\nBcc:'));
+ const attachment=mime.split('Content-Disposition: attachment; filename="invitation.ics"\r\nContent-Transfer-Encoding: base64\r\n\r\n')[1].split('\r\n--')[0];
+ assert.match(Buffer.from(attachment.replace(/\r\n/g,''),'base64').toString('utf8'),/METHOD:REQUEST/);
+ assert.throws(()=>invitationMime(invite,'sender@hotmail.com\r\nBcc: victim@example.com'));
+});

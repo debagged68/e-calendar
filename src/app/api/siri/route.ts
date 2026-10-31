@@ -79,8 +79,8 @@ export async function POST(request:NextRequest){
   }
   if(classification.intent==='appointment'){
    const interpreted=await interpretAppointment(new NextRequest(request.url,{method:'POST',headers,body:JSON.stringify({description})}));
-   const event=await interpreted.json() as {title?:string;date?:string;time?:string;endDate?:string;endTime?:string};
-   if(!interpreted.ok)return reply('I could not understand the calendar event. Please try again.',false,interpreted.status);
+   const event=await interpreted.json() as {title?:string;date?:string;time?:string;endDate?:string;endTime?:string;error?:string};
+   if(!interpreted.ok)return reply(event.error||'I could not understand the calendar event. Please try again.',false,interpreted.status);
    if(!event.title?.trim()||!event.date||!validDate(event.date)||!event.time||!validTime(event.time)){
     return reply('I need a clear event name, date and time. Please say the instruction again.',false,422);
    }

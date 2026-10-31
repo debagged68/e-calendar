@@ -1,49 +1,48 @@
-# Family invitations sent from Hotmail
+# Family invitations through an independent email service
 
-Set the shared recipient in **Settings → Calendar invitations → Default invitation email**, then use **Connect Hotmail** to authorize the sender. The sender and recipient can be the same Hotmail account. Every new family event, including Quick Action, Siri and Tesco-created events, queues one calendar invitation. Blank recipient disables invitations; changing it affects future events only.
+The default invitation email in Settings is the **recipient**. It may be a personal Hotmail address. E-calendar sends the invitation through Brevo; no Microsoft login, Entra registration or mailbox access is needed.
 
-No owned domain, DNS records or Resend account is required. Microsoft requires the app itself to be registered once before it can request permission. A personal Hotmail account can authorize the registered app; a business mailbox is not required. App registration requires access to a Microsoft Entra tenant/Azure account; see Microsoft's prerequisites below. If the portal will not let your personal account register an app, this must be resolved before the Connect button can work.
+Every new family event, including Quick Action, Siri and Tesco-created events, queues an invitation when the default email is set. Blank disables invitations. Changing the default affects future events, not existing events.
 
-## One-time Microsoft application setup
+## One-time sender setup
 
-1. Open https://entra.microsoft.com/ → **App registrations → New registration**. Name it `Family e-calendar` and choose **Personal Microsoft accounts only** (or organizational directories and personal accounts).
-2. Add a **Web** redirect URI. Copy the exact **Microsoft callback address** shown under Calendar settings; it is your existing calendar site's HTTPS address followed by `/microsoft-connect`. Use Web, not Single-page application. No custom domain is needed.
-3. Under **API permissions**, add Microsoft Graph **Delegated** permissions `User.Read` and `Mail.Send`. Do not add application permissions. The connection also requests `offline_access` so the server can renew access without asking you to sign in for each event.
-4. Copy the **Application (client) ID**. Under **Certificates & secrets**, create a client secret and copy its **Value**, not its Secret ID. Note its expiry; replace the secret before it expires.
-5. In the e-calendar Supabase project's **Edge Functions → Secrets**, add:
+1. Create a Brevo account at https://www.brevo.com/ and enable transactional email sending. A free plan is available; check the current quota and any account approval requirements before enabling sending.
+2. In Brevo's **Settings → Senders, Domains & Dedicated IPs → Senders**, add a sender and complete its email verification. An existing personal email can be used for this verification: no ownership of the Amplify hosting domain is required. Brevo may replace free-email/unauthenticated sender addresses with its own compliant sending address. Follow any account-specific requirements shown by Brevo. A domain you control is an alternative, not a requirement of this integration.
+3. Create a Brevo **API key** (not an SMTP password).
+4. Open https://supabase.com/dashboard/project/qkqcrnyjfvphryxasjch/functions/secrets and add:
 
    | Secret | Value |
    | --- | --- |
-   | `MICROSOFT_CLIENT_ID` | Application (client) ID |
-   | `MICROSOFT_CLIENT_SECRET` | Client secret **Value** |
-   | `ECALENDAR_APP_URL` | Existing calendar site's HTTPS origin, without `/microsoft-connect` or any other path |
+   | `BREVO_API_KEY` | Your Brevo API key |
+   | `CALENDAR_FROM_EMAIL` | The sender email you verified in Brevo |
 
-6. Reload the calendar, open Settings, select **Connect Hotmail**, sign in and allow the requested permissions. Then create a test event, check **Invite sent**, and accept the invitation in Outlook/Hotmail. Pending invitations will also be processed after connection.
+   These belong in Supabase Edge Function Secrets, not Amplify or calendar Settings. Never put the key in source code, a public environment variable or chat.
+5. In e-calendar, open **Settings → Calendar invitations**, retain the desired default recipient and choose **Refresh email status**. “Email service configured” means the server has both settings; it does not verify account approval, sender verification or delivery.
+6. Create a family event. Check the invitation email in Hotmail, including Junk, and open/accept `invitation.ics` to add it to the calendar. The appearance of invitation/accept controls varies by mail client and sender identity rewriting. Check Brevo's transactional logs if it does not arrive. No real delivery is claimed until this test succeeds.
 
-Never paste your Microsoft password or client secret into calendar settings, source code, public environment variables or chat. The client secret belongs only in Supabase Secrets. No Amplify secrets are needed for this connection.
+The free-address sender substitution is controlled by Brevo. The calendar attachment retains the configured sender as its organiser; Outlook handling of a rewritten sender must be checked with a real email. This integration does not promise automatic acceptance or native invitation buttons in every client.
 
-Microsoft references:
-- https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app
-- https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow
-- https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0
+## Delivery and retries
 
-## Connection security
+The `calendar-invites` Edge Function accepts an authenticated user GET for non-secret setup status. Its POST worker requires the existing private worker token. Sender credentials never reach the browser. The database trigger and scheduled worker continue to cover every new family event; no new database schema is required.
 
-The signed-in family user starts a short-lived authorization-code flow with PKCE. The callback verifies a browser-session state value, and the server atomically consumes the matching, user-bound state. Microsoft tokens remain on the server and are encrypted in private database tables; browsers only receive connection status and sender email. The account's connecting user controls disconnect/replacement. Token renewal uses the refresh token; revoked consent requires reconnecting. Disconnecting removes stored tokens but does not revoke permissions at Microsoft; those can also be removed in Microsoft account app permissions.
+Missing configuration leaves invitations pending without using delivery attempts. Brevo receives a UTF-8 base64 `invitation.ics` attachment with `METHOD:REQUEST`, a stable event UID and the stored event dates/times. API HTTP 201 with a message ID records provider acceptance as “Invite sent”; it does not mean inbox delivery or acceptance by the recipient.
 
-`microsoft-connect` verifies Supabase user tokens itself. The `calendar-invites` worker authenticates using its private worker token. Both functions have gateway JWT verification disabled because they perform explicit authentication. Neither exposes Microsoft credentials. Server-only RPCs are denied to browser and anonymous roles.
+Only explicit rate-limit refusals are retried (existing five-attempt/five-minute retry policy). Network timeouts, server errors, interrupted submissions or missing acceptance IDs may represent an uncertain send and are not blindly retried. Check Brevo logs before manually requeuing an uncertain invitation. Existing failed Microsoft jobs are not automatically reset. Pending jobs are processed once the new service is configured.
 
-## Delivery and scope
-
-Invitations contain an RFC 5545 calendar request sent through Microsoft Graph `/me/sendMail`, with a UTF-8 MIME attachment and a stable event UID. Date-only events are all-day; timed events preserve stored instants. Messages are saved in Hotmail Sent Items. **Invite sent** means Microsoft accepted the send request; it does not mean the recipient accepted or that delivery is complete.
-
-The trigger and minute retry job cover every new `family_events` row. Missing Microsoft configuration/connection leaves jobs pending. Throttling responses can be retried up to five times. Microsoft sendMail has no idempotency guarantee, so ambiguous timeouts or worker interruptions are marked failed and not automatically resent: check Hotmail Sent Items first.
-
-This initial feature does not synchronize subsequent edits, send cancellation emails, track RSVPs or suppress copies returned by external ICS subscriptions. Deleting an event removes its pending invite; already sent invitations remain in the recipient's calendar until removed there.
+Edits and cancellations are not emailed, RSVP replies are not read, and external ICS subscriptions may show a duplicate of an invited event. Deleting an event removes pending work but cannot remove an invitation already sent.
 
 ## Validation
 
+- `node --test tests/calendar-invites.test.mjs tests/invitation-mail.test.mjs`
 - `npm run build`
-- `node --test tests/calendar-invites.test.mjs`
-- Database tests verify recipient snapshots, enable/disable, duplicate prevention, OAuth state ownership/expiry/single use, encrypted token storage and server-only permissions, with test writes rolled back.
-- Real Microsoft sign-in and Outlook acceptance require completing the app registration above.
+- Tests cover dates, time zones, Unicode, injection, provider payload and acceptance, missing configuration, rate limiting and uncertain delivery.
+- Real delivery requires the Brevo account, verified sender and API key above; it has not been tested without those credentials.
+
+References:
+- https://developers.brevo.com/reference/send-transac-email
+- https://help.brevo.com/hc/en-us/articles/208836149-Create-a-new-sender-From-name-and-From-email
+- https://help.brevo.com/hc/en-us/articles/14925263522578-Comply-with-Gmail-Yahoo-and-Microsoft-s-requirements-for-email-senders
+- https://supabase.com/docs/guides/functions/secrets
+
+The older Microsoft callback files remain for compatibility with existing links, but the invitation worker and Settings no longer use Microsoft sending or its stored credentials.

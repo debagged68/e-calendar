@@ -7,6 +7,7 @@ const utc=(value:string)=>new Date(value).toISOString().replace(/[-:]/g,'').repl
 // RFC 5545 folds at 75 UTF-8 octets, without splitting a code point.
 function fold(line:string){const out:string[]=[];let current='';let bytes=0;for(const char of line){const size=new TextEncoder().encode(char).length;if(bytes+size>75){out.push(current);current=' ';bytes=1}current+=char;bytes+=size}out.push(current);return out.join('\r\n')}
 export function calendarInvitation(invite:Invite,organizer:string){
+ if(!/^[^\s<>@,;:]+@[^\s<>@,;:]+\.[^\s<>@,;:]+$/.test(organizer)||!/^[-A-Za-z0-9_]+$/.test(invite.event_id)||!/^[^\s<>@,;:]+@[^\s<>@,;:]+\.[^\s<>@,;:]+$/.test(invite.recipient))throw Error('Invalid invitation envelope');
  const event=invite.event_snapshot;
  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//E-Calendar//Family Calendar//EN','CALSCALE:GREGORIAN','METHOD:REQUEST','BEGIN:VEVENT',
   'UID:family-'+invite.event_id+'@e-calendar','DTSTAMP:'+utc(invite.created_at),'SEQUENCE:0','STATUS:CONFIRMED',

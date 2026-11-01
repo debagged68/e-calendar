@@ -134,8 +134,8 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 .paper-shell:is(.fit-screen,.full-detail) .paper-month .num{display:inline-block;padding:2px 5px;border-radius:4px}
 .paper-shell:is(.fit-screen,.full-detail) .paper-month .outside-month .num{color:#727b75}
 .paper-shell:is(.fit-screen,.full-detail) .calendar-paper .paper-month .cell,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-scroll,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-grid,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-cell,.paper-shell:is(.fit-screen,.full-detail) .important-bottom,.paper-shell:is(.fit-screen,.full-detail) .daily-strip{background:transparent}
-.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click,.paper-shell:is(.fit-screen,.full-detail) .important-item{background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,255,255,.82));color:#20352e;box-shadow:0 1px 4px #0002}
-.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click:hover{background:#eef4f0}
+.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click,.paper-shell:is(.fit-screen,.full-detail) .important-item{background:linear-gradient(180deg,rgba(255,255,255,.86),rgba(255,255,255,.56));color:#20352e;box-shadow:0 1px 4px #0002}
+.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click:hover{background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(255,255,255,.72))}
 .paper-shell:is(.fit-screen,.full-detail) .important-bottom h3{display:inline-block;padding:5px 10px;border-radius:8px}
 @media(min-width:851px){
 .paper-shell.fit-screen .paper-photo{position:absolute;inset:0;flex:none;height:100%}

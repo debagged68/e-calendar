@@ -119,14 +119,14 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 @media(min-width:651px) and (max-width:850px){.paper-shell .daily-strip{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(150px,.6fr)}}
 @media(max-width:650px){.paper-shell .daily-strip{grid-template-columns:1fr}}
 
-/* One unshaded photograph, with consistent solid reading boxes in every view. */
+/* Unshaded photograph, solid heading surfaces and softly graded event cards. */
 .paper-shell{position:relative;isolation:isolate;--calendar-start:0px;--reading-surface:#fff}
 .paper-shell:is(.fit-screen,.full-detail) .paper-photo{position:absolute;inset:0;z-index:-1;width:100%;height:100%;overflow:hidden;border-radius:8px;pointer-events:none}
 .paper-shell:is(.fit-screen,.full-detail) .full-photo{display:block;width:100%;height:100%;object-fit:cover;object-position:center;opacity:1;filter:none;mask-image:none;-webkit-mask-image:none}
 .paper-shell:is(.fit-screen,.full-detail) .topbar{position:relative;padding:8px 12px;background:var(--reading-surface);border-radius:8px}
 .paper-shell:is(.fit-screen,.full-detail) .calendar-paper{position:relative;margin-top:0;background:transparent;box-shadow:none;backdrop-filter:none}
-.paper-shell:is(.fit-screen,.full-detail) .calendar-head{background:transparent}
-.paper-shell:is(.fit-screen,.full-detail) .calendar-head h2,.paper-shell:is(.fit-screen,.full-detail) .source-legend,.paper-shell:is(.fit-screen,.full-detail) .paper-month .dayname,.paper-shell:is(.fit-screen,.full-detail) .paper-month .num,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-heading,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-date,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click,.paper-shell:is(.fit-screen,.full-detail) .important-bottom h3,.paper-shell:is(.fit-screen,.full-detail) .important-item,.paper-shell:is(.fit-screen,.full-detail) .daily-panel{background:var(--reading-surface);color:#20352e;text-shadow:none}
+.paper-shell:is(.fit-screen,.full-detail) .calendar-head{background:var(--reading-surface);padding:7px 10px;border-radius:8px}
+.paper-shell:is(.fit-screen,.full-detail) .calendar-head h2,.paper-shell:is(.fit-screen,.full-detail) .source-legend,.paper-shell:is(.fit-screen,.full-detail) .paper-month .dayname,.paper-shell:is(.fit-screen,.full-detail) .paper-month .num,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-heading,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-date,.paper-shell:is(.fit-screen,.full-detail) .important-bottom h3,.paper-shell:is(.fit-screen,.full-detail) .daily-panel{background:var(--reading-surface);color:#20352e;text-shadow:none}
 .paper-shell:is(.fit-screen,.full-detail) .calendar-head h2{padding:5px 12px;border-radius:8px}
 .paper-shell:is(.fit-screen,.full-detail) .source-legend{width:fit-content;max-width:100%;padding:9px 12px;border:0;border-radius:8px;margin:12px 0 14px}
 .paper-shell:is(.fit-screen,.full-detail) .source-legend .filter{font-weight:600;color:#20352e}
@@ -134,7 +134,7 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 .paper-shell:is(.fit-screen,.full-detail) .paper-month .num{display:inline-block;padding:2px 5px;border-radius:4px}
 .paper-shell:is(.fit-screen,.full-detail) .paper-month .outside-month .num{color:#727b75}
 .paper-shell:is(.fit-screen,.full-detail) .calendar-paper .paper-month .cell,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-scroll,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-grid,.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .agenda-cell,.paper-shell:is(.fit-screen,.full-detail) .important-bottom,.paper-shell:is(.fit-screen,.full-detail) .daily-strip{background:transparent}
-.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click{box-shadow:0 1px 4px #0002}
+.paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click,.paper-shell:is(.fit-screen,.full-detail) .important-item{background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,255,255,.82));color:#20352e;box-shadow:0 1px 4px #0002}
 .paper-shell:is(.fit-screen,.full-detail) .calendar-paper .event-click:hover{background:#eef4f0}
 .paper-shell:is(.fit-screen,.full-detail) .important-bottom h3{display:inline-block;padding:5px 10px;border-radius:8px}
 @media(min-width:851px){

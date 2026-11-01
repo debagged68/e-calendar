@@ -4,7 +4,7 @@ The per-user LaunchAgent starts the browser helper when you log into your Mac. T
 
 ## Update or install
 
-Stop any manually started old helper with Ctrl+C, then:
+Run:
 
 ```sh
 cd ~/e-calendar
@@ -14,7 +14,7 @@ npm install --no-save playwright
 zsh scripts/install-tesco-launchagent.sh
 ```
 
-The installer replaces/restarts `uk.co.escapeaway.ecalendar.tesco-helper` using the current Node executable and project directory. It no longer sets `AWS_PROFILE` or `AWS_REGION`. It does not modify or renew your existing AWS login.
+The installer stops the existing LaunchAgent and any recognised Tesco helper owned by your user on port 47831, then replaces/restarts `uk.co.escapeaway.ecalendar.tesco-helper`. It verifies the running helper reports protocol 2 before reporting success. Unrelated processes are left untouched. It no longer sets `AWS_PROFILE` or `AWS_REGION`. It does not modify or renew your existing AWS login.
 
 Open Reconnect Tesco in the signed-in calendar once Amplify has deployed the update. Helper v2 handles only Tesco browser authentication. The hosted app owns reading/writing Secrets Manager. See [the reconnect design](tesco-reconnect.md) for the handoff and server permissions.
 

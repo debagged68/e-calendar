@@ -26,7 +26,7 @@ npm install --no-save playwright
 zsh scripts/install-tesco-launchagent.sh
 ```
 
-The existing LaunchAgent is replaced/restarted without AWS environment settings. If a manually started helper already owns port 47831, stop that old process with Ctrl+C first. Reload the calendar's Reconnect Tesco page after Amplify deploys the new commit. An old helper produces an update message rather than attempting an AWS login.
+The existing LaunchAgent is replaced/restarted without AWS environment settings. The installer also replaces recognised manually started Tesco helpers on port 47831 and verifies that protocol 2 is running; it refuses to stop unrelated processes. Reload the calendar's Reconnect Tesco page after Amplify deploys the new commit. An old helper produces an update message rather than attempting an AWS login.
 
 For a foreground helper, use `npm run tesco:helper`. The older `npm run tesco:connect` command is now an alias for that same helper, rather than a separate AWS-writing script.
 

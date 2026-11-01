@@ -44,10 +44,11 @@ EOF
 plutil -lint "$PLIST"
 UID_NOW="$(id -u)"
 launchctl bootout "gui/$UID_NOW/$LABEL" >/dev/null 2>&1 || true
+"$NODE_BIN" "$PROJECT_DIR/scripts/tesco-helper-install.mjs" stop
 launchctl bootstrap "gui/$UID_NOW" "$PLIST"
 launchctl enable "gui/$UID_NOW/$LABEL"
 launchctl kickstart -k "gui/$UID_NOW/$LABEL"
+"$NODE_BIN" "$PROJECT_DIR/scripts/tesco-helper-install.mjs" verify
 echo "Installed $LABEL. It will start when you log in."
 echo "Status: launchctl print gui/$UID_NOW/$LABEL"
 echo "Logs: $LOG_DIR/tesco-helper.log"
-echo "If port 47831 is already in use, stop the manually started helper (Ctrl+C) and run this installer again."

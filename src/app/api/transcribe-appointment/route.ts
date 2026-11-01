@@ -1,14 +1,9 @@
 import {NextRequest,NextResponse} from 'next/server';
-import {createClient} from '@supabase/supabase-js';
+import {authenticatedUser} from '../../../lib/server/user';
 export const runtime='nodejs';
 export async function POST(request:NextRequest){
  try{
-  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const bearer=request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
-  if(!url||!key||!bearer)return NextResponse.json({error:'Sign in required.'},{status:401});
-  const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-  const {data:{user},error}=await supabase.auth.getUser(bearer);
-  if(error||!user)return NextResponse.json({error:'Session expired. Sign in again.'},{status:401});
+  if(!await authenticatedUser(request))return NextResponse.json({error:'Please sign in again.'},{status:401});
   if(Number(request.headers.get('content-length')||0)>9*1024*1024)return NextResponse.json({error:'Recording is too large.'},{status:413});
   const form=await request.formData(),audio=form.get('audio');
   if(!(audio instanceof File)||audio.size<500||audio.size>8*1024*1024)return NextResponse.json({error:'Record a short appointment (up to 60 seconds).'}, {status:400});

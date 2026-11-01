@@ -45,4 +45,4 @@ References:
 - https://help.brevo.com/hc/en-us/articles/14925263522578-Comply-with-Gmail-Yahoo-and-Microsoft-s-requirements-for-email-senders
 - https://supabase.com/docs/guides/functions/secrets
 
-The older Microsoft callback files remain for compatibility with existing links, but the invitation worker and Settings no longer use Microsoft sending or its stored credentials.
+The older Microsoft connection URLs are retired. The callback explains the change and the API/Edge endpoint returns HTTP 410. The old OAuth sender implementation and raw MIME mail writer have been removed; stored credentials and historical migrations are retained without being used by invitations.

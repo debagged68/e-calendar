@@ -1,19 +1,19 @@
 'use client';
+import {useBrowserUser} from '../../lib/use-browser-user';
+import {browserClient,accessToken} from '../../lib/browser-client';
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
-import {createClient,type User} from '@supabase/supabase-js';
-const db=process.env.NEXT_PUBLIC_SUPABASE_URL&&process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY):null;
+const db=browserClient;
 type BasketItem={sku:string;quantity:number;cost?:number;product?:{title:string;price:number|null;imageUrl:string|null}|null};
 type Order={orderNo:string;start:string;end:string};
 type Slot={id:string;start:string;end:string};
 export default function TescoBasket(){
+ const {user,ready}=useBrowserUser();
  const [slots,setSlots]=useState<Slot[]>([]); const [reconnectNeeded,setReconnectNeeded]=useState(false); const [loaded,setLoaded]=useState(false);
- const [user,setUser]=useState<User|null>(null),[ready,setReady]=useState(false),[loading,setLoading]=useState(false),[finding,setFinding]=useState(false),[items,setItems]=useState<BasketItem[]>([]),[guidePrice,setGuidePrice]=useState<number|null>(null),[order,setOrder]=useState<Order|null>(null),[message,setMessage]=useState('');
- useEffect(()=>{if(!db){setReady(true);return}db.auth.getUser().then(x=>{setUser(x.data.user);setReady(true)}).catch(()=>setReady(true))},[]);
- async function token(){if(!db)throw Error('Not configured');const r=await db.auth.getSession();if(!r.data.session)throw Error('Sign in on the whiteboard first.');return r.data.session.access_token}
+ const [loading,setLoading]=useState(false),[finding,setFinding]=useState(false),[items,setItems]=useState<BasketItem[]>([]),[guidePrice,setGuidePrice]=useState<number|null>(null),[order,setOrder]=useState<Order|null>(null),[message,setMessage]=useState('');
  function reportError(e:unknown,fallback:string){const msg=e instanceof Error?e.message:fallback;setMessage(msg);setReconnectNeeded(/tesco.*(session|expired|reconnect|authentication|unauthori[sz]ed)|AuthExpiredError/i.test(msg))}
- async function load(){setLoading(true);setMessage('');try{const t=await token();const r=await fetch('/api/tesco-test?action=basket',{headers:{Authorization:'Bearer '+t},cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to read Tesco basket');setReconnectNeeded(false);setLoaded(true);setItems(d.items||[]);setGuidePrice(typeof d.guidePrice==='number'?d.guidePrice:null)}catch(e){setLoaded(false);reportError(e,'Unable to read basket')}finally{setLoading(false)}}
- async function find(slotId?:string){setFinding(true);setMessage('');try{const t=await token();const r=await fetch('/api/tesco-test?action=sync-order',{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(slotId?{slotId}:{})});const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to find delivery slot');setReconnectNeeded(false);setSlots(d.requiresConfirmation?d.slots||[]:[]);setOrder(d.found?{orderNo:d.orderNo||'Reserved slot',start:d.start,end:d.end}:null);setMessage(d.message||'Slot lookup completed')}catch(e){reportError(e,'Unable to find slot')}finally{setFinding(false)}}
+ async function load(){setLoading(true);setMessage('');try{const t=await accessToken(db,'Sign in on the whiteboard first.');const r=await fetch('/api/tesco-test?action=basket',{headers:{Authorization:'Bearer '+t},cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to read Tesco basket');setReconnectNeeded(false);setLoaded(true);setItems(d.items||[]);setGuidePrice(typeof d.guidePrice==='number'?d.guidePrice:null)}catch(e){setLoaded(false);reportError(e,'Unable to read basket')}finally{setLoading(false)}}
+ async function find(slotId?:string){setFinding(true);setMessage('');try{const t=await accessToken(db,'Sign in on the whiteboard first.');const r=await fetch('/api/tesco-test?action=sync-order',{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(slotId?{slotId}:{})});const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to find delivery slot');setReconnectNeeded(false);setSlots(d.requiresConfirmation?d.slots||[]:[]);setOrder(d.found?{orderNo:d.orderNo||'Reserved slot',start:d.start,end:d.end}:null);setMessage(d.message||'Slot lookup completed')}catch(e){reportError(e,'Unable to find slot')}finally{setFinding(false)}}
  useEffect(()=>{if(user)void load()},[user]);
  const button={padding:'13px 18px',borderRadius:10,border:'1px solid #c5d4c8',fontSize:17,background:'#e5eee6',color:'#193d2e',cursor:'pointer'};
  return <main style={{minHeight:'100dvh',padding:20,background:'#edf3ed',fontFamily:'Arial,sans-serif',color:'#20392e'}}><section style={{maxWidth:650,margin:'0 auto',padding:24,background:'#fff',borderRadius:18}}>

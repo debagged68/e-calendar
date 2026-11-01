@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import {readFileSync,existsSync} from 'node:fs';
 const require=createRequire(import.meta.url),ts=require('typescript');
 const Module=require('node:module');
-require.extensions['.tsx']=(module,filename)=>module._compile(ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,filename);
+require.extensions['.ts']=require.extensions['.tsx']=(module,filename)=>module._compile(ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,filename);
 const originalEnv={url:process.env.NEXT_PUBLIC_SUPABASE_URL,key:process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY};
 process.env.NEXT_PUBLIC_SUPABASE_URL='https://test.supabase.co';process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY='test-key';
 const phrase="Run test 74 next Saturday 10 o'clock";
@@ -26,19 +26,19 @@ function mount({automatic=false,description=phrase,intent='appointment',event=dr
   useEffect(effect,deps){const index=hook++;const old=slots[index];if(!old||deps.some((value,i)=>!Object.is(value,old[i]))){slots[index]=deps;effects.push(effect)}}
  };
  function from(table){const query={operation:'select',payload:null,filters:{}};const chain={
-  select(){return chain},eq(key,value){query.filters[key]=value;return chain},order(){return chain},limit(){return chain},single(){return chain},
+  select(){return chain},eq(key,value){query.filters[key]=value;return chain},order(){return chain},limit(){return chain},single(){query.single=true;return chain},
   insert(payload){query.operation='insert';query.payload=payload;return chain},update(payload){query.operation='update';query.payload=payload;return chain},
   then(resolve,reject){return Promise.resolve().then(()=>{
    if(table==='grocery_lists'&&query.operation==='insert')listExists=true;
    if(query.operation!=='select'){writes.push({table,operation:query.operation,payload:query.payload});if(table==='grocery_items'&&query.operation==='insert')items.push({id:'item',...query.payload});if(table==='grocery_items'&&query.operation==='update')Object.assign(items.find(item=>item.id===query.filters.id),query.payload)}
-   return {error:null,data:table==='grocery_lists'?(query.operation==='insert'?{id:'list'}:listExists?[{id:'list',event_id:null}]:[]):table==='grocery_items'?items:[]};
+   return {error:null,data:table==='grocery_lists'?(query.operation==='insert'?{id:'list'}:listExists?[{id:'list',event_id:null}]:[]):table==='grocery_items'?(query.single?items.at(-1):items):[]};
   }).then(resolve,reject)}
  };return chain}
  const db={from,auth:{getUser:async()=>({data:{user:currentUser}}),getSession:async()=>({data:{session:currentUser?{access_token:'test-token'}:null}}),onAuthStateChange(callback){authCallback=callback;return {data:{subscription:{unsubscribe(){}}}}},async signInWithPassword(){currentUser=user;authCallback('SIGNED_IN',{user});await new Promise(resolve=>releaseLogin=resolve);return {error:null}}}};
  const load=Module._load;
  Module._load=function(name,...args){if(name==='react')return react;if(name==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};if(name==='@supabase/supabase-js')return {createClient:()=>db};return load.call(this,name,...args)};
  let Component;
- try{const filename=require.resolve('../src/app/add/page.tsx');delete require.cache[filename];Component=require(filename).default}finally{Module._load=load}
+ try{const filename=require.resolve('../src/app/add/page.tsx');delete require.cache[filename];delete require.cache[require.resolve('../src/lib/browser-client.ts')];delete require.cache[require.resolve('../src/lib/use-browser-user.ts')];Component=require(filename).default}finally{Module._load=load}
  function render(){hook=0;dirty=false;tree=Component();const pending=effects.splice(0);for(const effect of pending)effect()}
  async function flush(){let idle=0;for(let i=0;i<50;i++){if(dirty)render();await new Promise(resolve=>setImmediate(resolve));if(!dirty&&!effects.length){if(++idle===2)return}else idle=0}throw Error('Component did not settle')}
  return {writes,requests,location,flush,get tree(){return tree},

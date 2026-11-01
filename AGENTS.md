@@ -7,3 +7,13 @@ Before implementing a feature, find and reuse its existing authoritative workflo
 For Quick Action, `src/app/add/page.tsx` owns the workflow. Manual text, in-page speech, and Shortcut input must use its existing `routeQuick`, `interpret`, and `save` functions. `/siri` is a transport-only redirect to Quick Action; it must never grow an independent API or processing implementation. Automatic invocation may skip button presses, but must call the same functions with the same data and rules.
 
 Check both entry points when changing this workflow. Never claim that duplication has been removed merely because one parser is shared.
+
+## Shared ownership after cleanup
+
+- `src/lib/groceries.ts` owns collecting-list lookup/creation, item validation and case-insensitive quantity merging. Quick Action, the whiteboard and calendar summary must reuse it.
+- `src/lib/browser-client.ts` and `src/lib/use-browser-user.ts` own the browser Supabase client, access-token retrieval and user-session lifecycle. Server routes must independently verify JWTs through `src/lib/server/user.ts`; never trust browser session state for server authorization.
+- `src/lib/server/tesco-session.ts` owns the hosted Tesco session sources, AWS region, format and expiry policy. All hosted Tesco operations use `tescoClient()`; do not add another session loader.
+- `src/lib/server/tesco-delivery.ts` owns the reserved-slot and confirmed-order event persistence rules. Entry points retain their distinct confirmation requirements.
+- `src/lib/server/groq.ts` owns chat transport. Classification and extraction remain distinct operations within the one Quick Action workflow.
+- Retired integration URLs return HTTP 410 through `supabase/functions/_shared/retired.ts`. Do not restore the removed Microsoft sender or per-user Hotmail implementation. Use Brevo invitations and shared ICS feeds.
+- Historical migrations are deployment history, not dead application code. Do not delete them or stored user data as a source-cleanup shortcut.

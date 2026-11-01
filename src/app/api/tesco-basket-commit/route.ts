@@ -1,16 +1,13 @@
 import {NextRequest,NextResponse} from 'next/server';
-import {createClient} from '@supabase/supabase-js';
-import {SecretsManagerClient,GetSecretValueCommand} from '@aws-sdk/client-secrets-manager';
-import {Basketeer,type Session} from 'basketeer';
+import {authenticatedUser} from '../../../lib/server/user';
+import {tescoClient} from '../../../lib/server/tesco';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 const respond=(data:object,status=200)=>NextResponse.json(data,{status,headers:{'Cache-Control':'no-store'}});
 export async function POST(req:NextRequest){
- const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
- const token=req.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
- if(!url||!key||!token)return respond({error:'Not authenticated'},401);
- const db=createClient(url,key,{global:{headers:{Authorization:'Bearer '+token}},auth:{persistSession:false,autoRefreshToken:false}});
- const auth=await db.auth.getUser(token);if(auth.error||!auth.data.user)return respond({error:'Not authenticated'},401);
+ const auth=await authenticatedUser(req);
+ if(!auth)return respond({error:'Not authenticated'},401);
+ const {db}=auth;
  let listId:string;try{({listId}=await req.json())}catch{return respond({error:'Invalid request'},400)}
  if(!/^[0-9a-f-]{36}$/i.test(listId||''))return respond({error:'Invalid list'},400);
  const list=await db.from('grocery_lists').select('id,event_id,status').eq('id',listId).single();
@@ -22,13 +19,8 @@ export async function POST(req:NextRequest){
  const matches=await db.from('grocery_item_products').select('grocery_item_id,tesco_sku,basket_status').in('grocery_item_id',ids).eq('basket_status','selected');
  if(matches.error)return respond({error:matches.error.message},500);
  if(!matches.data?.length)return respond({error:'No selected products waiting to send'},400);
- let session:Session;
- try{
-  const secret=await new SecretsManagerClient({region:process.env.AWS_REGION||'eu-north-1'}).send(new GetSecretValueCommand({SecretId:process.env.TESCO_SECRET_ID||'e-calendar/tesco-session'}));
-  session=JSON.parse(secret.SecretString||'{}') as Session;
-  if(!session.accessToken||!session.customerUuid||!session.cookies||!session.accessTokenExpiry||session.accessTokenExpiry<Date.now()+30000)throw Error('expired');
- }catch{return respond({error:'Tesco session expired or unavailable. Reconnect Tesco before committing.'},503)}
- const tesco=new Basketeer({session});
+ let tesco:Awaited<ReturnType<typeof tescoClient>>;
+ try{tesco=await tescoClient()}catch{return respond({error:'Tesco session expired or unavailable. Reconnect Tesco before committing.'},503)}
  let sent=0;
  for(const m of matches.data){
   const qty=rows.data?.find(x=>x.id===m.grocery_item_id)?.quantity||0;

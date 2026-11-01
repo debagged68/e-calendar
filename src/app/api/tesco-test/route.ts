@@ -1,42 +1,16 @@
 import {NextRequest,NextResponse} from 'next/server';
-import {createClient} from '@supabase/supabase-js';
-import {Basketeer,type Session} from 'basketeer';
-import {SecretsManagerClient,GetSecretValueCommand} from '@aws-sdk/client-secrets-manager';
+import {authenticatedUser} from '../../../lib/server/user';
+import {tescoClient} from '../../../lib/server/tesco';
+import {saveTescoDelivery} from '../../../lib/server/tesco-delivery';
+import {londonDate} from '../../../lib/appointment-dates';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 const headers={'Cache-Control':'no-store'};
 function reply(body:object,status=200){return NextResponse.json(body,{status,headers})}
-async function authorize(request:NextRequest){
- const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
- const token=request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
- if(!url||!key||!token)return false;
- const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
- const {data:{user},error}=await supabase.auth.getUser(token);
- return !error&&!!user;
-}
-const secrets = new SecretsManagerClient({});
-async function tesco(){
- let raw=process.env.TESCO_SESSION_B64;
- if(!raw){
-  const secret=await secrets.send(new GetSecretValueCommand({SecretId:process.env.TESCO_SECRET_ID||'e-calendar/tesco-session'}));
-  const value=secret.SecretString||(secret.SecretBinary?Buffer.from(secret.SecretBinary).toString('utf8'):null);
-  if(!value)throw new Error('NOT_CONFIGURED');
-  try{
-   const session=JSON.parse(value) as Session;
-   if(!session.accessToken||!session.customerUuid||!session.cookies)throw new Error('INVALID_SESSION');
-   if(session.accessTokenExpiry&&session.accessTokenExpiry<Date.now()+30000)throw new Error('EXPIRED');
-   return new Basketeer({session});
-  }catch(e){if(e instanceof SyntaxError)throw new Error('INVALID_SESSION');throw e}
- }
- const session=JSON.parse(Buffer.from(raw,'base64').toString('utf8')) as Session;
- if(!session.accessToken||!session.customerUuid||!session.cookies)throw new Error('INVALID_SESSION');
- if(session.accessTokenExpiry&&session.accessTokenExpiry<Date.now()+30000)throw new Error('EXPIRED');
- return new Basketeer({session});
-}
 export async function GET(req:NextRequest){
- if(!await authorize(req))return reply({error:'Sign in to the calendar first.'},401);
+ if(!await authenticatedUser(req))return reply({error:'Sign in to the calendar first.'},401);
  try{
-  const client=await tesco();
+  const client=await tescoClient();
   const action=req.nextUrl.searchParams.get('action');
   if(action==='matches'){
    const namesRaw=req.nextUrl.searchParams.get('names')||'[]';
@@ -139,58 +113,44 @@ export async function GET(req:NextRequest){
  }catch(e){return failure(e)}
 }
 export async function POST(req:NextRequest){
- if(!await authorize(req))return reply({error:'Sign in to the calendar first.'},401);
+ const auth=await authenticatedUser(req);
+ if(!auth)return reply({error:'Sign in to the calendar first.'},401);
   if((req.nextUrl.searchParams.get('action'))==='sync-order'){
-   const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-   const token=req.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
-   if(!url||!key||!token)return reply({error:'Sign in required'},401);
-   const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:'Bearer '+token}}});
-   const {data:{user},error:authError}=await db.auth.getUser(token);
-   if(authError||!user)return reply({error:'Sign in again'},401);
+   const {db,user}=auth;
    try{
-    const client=await tesco();
-    const localDate=(value:Date)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(value);
-    const today=localDate(new Date());
-    const endDate=(days:number)=>{const d=new Date();d.setUTCDate(d.getUTCDate()+days);return localDate(d)};
+    const client=await tescoClient();
+    const today=londonDate(new Date());
+    const endDate=(days:number)=>{const d=new Date();d.setUTCDate(d.getUTCDate()+days);return londonDate(d)};
     // Tesco exposes booked delivery slots separately from completed orders.
     // A Booked status alone does not prove ownership: ask the user to confirm before writing.
     const ranges=[{start:today,end:endDate(6)},{start:endDate(7),end:endDate(13)}];
     const slotResults=await Promise.allSettled(ranges.map(range=>client.slots.list(range)));
     const slots=slotResults.flatMap(x=>x.status==='fulfilled'?x.value:[])
-      .filter(x=>x.status.toLowerCase()==='booked'&&x.id&&Number.isFinite(Date.parse(x.start))&&Number.isFinite(Date.parse(x.end))&&localDate(new Date(x.start))>=today)
+      .filter(x=>x.status.toLowerCase()==='booked'&&x.id&&Number.isFinite(Date.parse(x.start))&&Number.isFinite(Date.parse(x.end))&&londonDate(new Date(x.start))>=today)
       .sort((x,y)=>Date.parse(x.start)-Date.parse(y.start));
     const selectedSlotId=(await req.json().catch(()=>({})))?.slotId as string|undefined;
     if(slots.length&&!selectedSlotId)return reply({found:false,requiresConfirmation:true,slots:slots.map(x=>({id:x.id,start:x.start,end:x.end})),message:'Tesco reports a booked delivery slot. Confirm the correct reservation to add it to your calendar.'});
     if(selectedSlotId){
      const slot=slots.find(x=>x.id===selectedSlotId);
      if(!slot)return reply({error:'Selected slot is no longer reported as booked. Refresh Find slot.'},409);
-     const stableId='reserved-slot:'+slot.id;
-     const existing=await db.from('family_events').select('id').eq('tesco_order_id',stableId).maybeSingle();
-     if(existing.error)throw existing.error;
-     const payload={title:'Tesco delivery (reserved)',event_date:localDate(new Date(slot.start)),start_at:new Date(slot.start).toISOString(),end_at:new Date(slot.end).toISOString(),important:false};
-     const result=existing.data?await db.from('family_events').update(payload).eq('id',existing.data.id).select('id').single():await db.from('family_events').insert({...payload,tesco_order_id:stableId,created_by:user.id}).select('id').single();
-     if(result.error)throw result.error;
-     return reply({found:true,reserved:true,eventId:result.data.id,orderNo:'Reserved slot',start:slot.start,end:slot.end,created:!existing.data,message:existing.data?'Reserved Tesco slot updated in calendar.':'Reserved Tesco slot added to calendar.'});
+     const result=await saveTescoDelivery(db,user.id,{id:'reserved-slot:'+slot.id,title:'Tesco delivery (reserved)',start:slot.start,end:slot.end});
+     return reply({found:true,reserved:true,...result,orderNo:'Reserved slot',start:slot.start,end:slot.end,message:result.created?'Reserved Tesco slot added to calendar.':'Reserved Tesco slot updated in calendar.'});
     }
     const orders=await client.orders.list();
-    const upcoming=orders.filter(o=>o.slot?.start&&o.slot?.end&&Number.isFinite(Date.parse(o.slot.start))&&Number.isFinite(Date.parse(o.slot.end))&&localDate(new Date(o.slot.start))>=today)
+    const upcoming=orders.filter(o=>o.slot?.start&&o.slot?.end&&Number.isFinite(Date.parse(o.slot.start))&&Number.isFinite(Date.parse(o.slot.end))&&londonDate(new Date(o.slot.start))>=today)
       .sort((x,y)=>Date.parse(x.slot!.start!)-Date.parse(y.slot!.start!));
     const order=upcoming[0];
     if(!order)return reply({found:false,message:'No booked delivery slot was returned for the next 14 days, and no upcoming confirmed order was found.'});
     if(!order.id)return reply({error:'Tesco order has no stable identifier; calendar event not created.'},422);
     const start=order.slot!.start!,end=order.slot!.end!;
-    const existing=await db.from('family_events').select('id').eq('tesco_order_id',order.id).maybeSingle();
-    if(existing.error)throw existing.error;
-    const payload={title:'Tesco delivery',event_date:localDate(new Date(start)),start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),important:false};
-    const result=existing.data?await db.from('family_events').update(payload).eq('id',existing.data.id).select('id').single():await db.from('family_events').insert({...payload,tesco_order_id:order.id,created_by:user.id}).select('id').single();
-    if(result.error)throw result.error;
-    return reply({found:true,eventId:result.data.id,orderNo:order.orderNo,start,end,created:!existing.data,message:existing.data?'Tesco delivery updated in Family calendar.':'Tesco delivery added to Family calendar.'});
+    const result=await saveTescoDelivery(db,user.id,{id:order.id,title:'Tesco delivery',start,end});
+    return reply({found:true,...result,orderNo:order.orderNo,start,end,message:result.created?'Tesco delivery added to Family calendar.':'Tesco delivery updated in Family calendar.'});
    }catch(e){if(e instanceof Error&&('code' in e))return reply({error:'Could not save Tesco delivery in Family calendar: '+e.message},500);return failure(e)}
   }
  try{
   const {sku,quantity,confirmed}=await req.json() as {sku?:string;quantity?:number;confirmed?:boolean};
   if(!confirmed||!sku||!/^\d{6,15}$/.test(sku)||quantity!==1)return reply({error:'Explicitly confirm a single SKU and quantity 1.'},400);
-  const client=await tesco();
+  const client=await tescoClient();
   const before=await client.basket.get();
   const existing=before.items.find(x=>x.sku===sku)?.quantity||0;
   const result=await client.basket.add(sku,1);

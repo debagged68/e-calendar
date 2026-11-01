@@ -1,10 +1,10 @@
 'use client';
+import {browserClient,accessToken} from '../../lib/browser-client';
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
-import {createClient} from '@supabase/supabase-js';
 
 const helper='http://127.0.0.1:47831';
-const db=process.env.NEXT_PUBLIC_SUPABASE_URL&&process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY):null;
+const db=browserClient;
 function safeReturnPath(){
  const value=new URLSearchParams(window.location.search).get('returnTo')||'/basket';
  return value.startsWith('/')&&!value.startsWith('//')&&!value.includes('\\')?value:'/basket';
@@ -20,10 +20,9 @@ export default function TescoReconnect(){
   let helperStarted=false;
   async function connected(){
    if(!db)return false;
-   const {data:{session}}=await db.auth.getSession();
-   if(!session)return false;
    try{
-    const r=await fetch('/api/tesco-test?action=basket',{headers:{Authorization:'Bearer '+session.access_token},cache:'no-store',signal:controller.signal});
+    const token=await accessToken(db);
+    const r=await fetch('/api/tesco-test?action=basket',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal});
     return r.ok;
    }catch{return false}
   }

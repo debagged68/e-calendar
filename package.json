@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "tesco:connect": "node scripts/tesco-connect.mjs",
+    "tesco:connect": "node scripts/tesco-local-helper.mjs",
     "tesco:helper": "node scripts/tesco-local-helper.mjs"
   },
   "dependencies": {
@@ -14,7 +14,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "@supabase/supabase-js": "2.105.0",
-    "basketeer": "^0.1.0",
+    "basketeer": "0.1.2",
     "@aws-sdk/client-secrets-manager": "^3.800.0"
   },
   "devDependencies": {

@@ -2,79 +2,64 @@
 import {browserClient,accessToken} from '../../lib/browser-client';
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
-
 const helper='http://127.0.0.1:47831';
-const db=browserClient;
 function safeReturnPath(){
  const value=new URLSearchParams(window.location.search).get('returnTo')||'/basket';
  return value.startsWith('/')&&!value.startsWith('//')&&!value.includes('\\')?value:'/basket';
 }
 export default function TescoReconnect(){
  const [state,setState]=useState<'connecting'|'waiting'|'failed'>('connecting');
- const [error,setError]=useState('');
- const [attempt,setAttempt]=useState(0);
+ const [error,setError]=useState(''),[attempt,setAttempt]=useState(0);
  useEffect(()=>{
-  let cancelled=false;
-  let timer:ReturnType<typeof setTimeout>|undefined;
-  const controller=new AbortController();
-  let helperStarted=false;
+  let cancelled=false,timer:ReturnType<typeof setTimeout>|undefined;
+  const controller=new AbortController(),requestId=crypto.randomUUID();
   async function connected(){
-   if(!db)return false;
-   try{
-    const token=await accessToken(db);
-    const r=await fetch('/api/tesco-test?action=basket',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal});
-    return r.ok;
-   }catch{return false}
+   try{const token=await accessToken(browserClient);const result=await fetch('/api/tesco-test?action=basket',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal});return result.ok}catch{return false}
+  }
+  async function local(path:string){
+   const result=await fetch(helper+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId}),signal:controller.signal});
+   const data=await result.json();if(!result.ok)throw Error(data.error||'Could not contact the Tesco helper.');return data;
   }
   async function run(){
-   // A successful live basket read is the source of truth, not the helper status.
    if(await connected()){if(!cancelled)window.location.replace(safeReturnPath());return}
    if(cancelled)return;
    try{
-    const r=await fetch(helper+'/reconnect',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:'{}',signal:controller.signal});
-    if(!r.ok&&r.status!==409)throw Error('Could not start Tesco sign-in.');
-    helperStarted=true;
-    if(cancelled)return;
-    setState('waiting');
-   }catch{
-    if(cancelled)return;
-    setState('failed');
-    setError('Could not contact the Tesco helper on this computer. The Chrome login window cannot open until the local helper is running. Update and restart the Tesco helper on your Mac, then select Try again.');
-    return;
-   }
-   const start=Date.now();
-   async function poll(){
-    if(cancelled)return;
-    if(await connected()){if(!cancelled)window.location.replace(safeReturnPath());return}
-    if(cancelled)return;
-    if(helperStarted){
+    const token=await accessToken(browserClient);
+    const preflight=await fetch('/api/tesco-session',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal});
+    const configuration=await preflight.json();if(!preflight.ok)throw Error(configuration.error||'The server is not ready to save the Tesco connection.');
+    // Refuse the old AWS-dependent helper before asking it to do any work.
+    let health;try{const response=await fetch(helper+'/status',{cache:'no-store',signal:controller.signal});health=await response.json()}
+    catch{throw Error('Could not contact the Tesco helper. Update and restart the helper on this Mac, then select Try again. No AWS sign-in is needed.')}
+    if(health.protocol!==2)throw Error('The old Tesco helper is still running. Update and restart it once to enable reconnecting without an AWS login.');
+    await local('/reconnect');if(cancelled)return;setState('waiting');
+    const started=Date.now();
+    async function poll(){
+     if(cancelled)return;
      try{
-      const r=await fetch(helper+'/status',{signal:controller.signal,cache:'no-store'});
-      if(r.ok){
-       const data=await r.json() as {status:string;error?:string|null};
-       if(data.status==='failed'){
-        setState('failed');
-        if(data.error==='aws-login-expired')setError('Your AWS login on this Mac has expired. Open Terminal and run: aws login --profile oast-cottage. Complete AWS sign-in, then select Try again. Your Tesco login is not the problem.');
-        else if(data.error==='tesco-interactive-required')setError('Tesco needs an interactive sign-in. On your Mac, open Terminal and run: cd ~/e-calendar && AWS_PROFILE=oast-cottage npm run tesco:connect -- login. Once AWS Tesco session updated appears, select Try again.');
-        else setError('Tesco reconnection failed. Check the Tesco helper log on your Mac for the specific error, then try again.');
-        return
-       }
+      const result=await local('/result');if(cancelled)return;
+      if(result.status==='failed')throw Error('Tesco could not renew its browser connection. Try again and complete Tesco sign-in in Chrome if prompted. No AWS sign-in is needed.');
+      if(result.status==='ready'){
+       const token=await accessToken(browserClient);
+       const saved=await fetch('/api/tesco-session',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({requestId,session:result.session}),signal:controller.signal});
+       const data=await saved.json();if(!saved.ok)throw Error(data.error||'The server could not save the Tesco connection.');
+       await local('/complete').catch(()=>{});
+       if(await connected()){if(!cancelled)window.location.replace(safeReturnPath());return}
+       throw Error('The refreshed session was saved, but Tesco has not confirmed the connection yet. Select Try again.');
       }
-     }catch{ /* Old helpers do not provide /status; keep checking Tesco directly. */ }
+      if(Date.now()-started>360000)throw Error('Tesco sign-in timed out. Select Try again.');
+      timer=setTimeout(poll,1500);
+     }catch(e){if(!cancelled){setState('failed');setError(e instanceof Error?e.message:'Could not reconnect Tesco.')}}
     }
-    if(Date.now()-start>180000){setState('failed');setError('Tesco is not responding yet. You can return to the chalkboard or retry.');return}
-    timer=setTimeout(poll,2500);
-   }
-   timer=setTimeout(poll,1500);
+    timer=setTimeout(poll,1000);
+   }catch(e){if(!cancelled){setState('failed');setError(e instanceof Error?e.message:'Could not reconnect Tesco.')}}
   }
-  void run();
-  return()=>{cancelled=true;controller.abort();if(timer)clearTimeout(timer)};
+  void run();return()=>{cancelled=true;controller.abort();if(timer)clearTimeout(timer)};
  },[attempt]);
  function retry(){setError('');setState('connecting');setAttempt(n=>n+1)}
  return <main className="shell"><section className="panel" style={{maxWidth:520,margin:'70px auto',padding:28,textAlign:'center'}}>
   <h1>{state==='failed'?'Tesco connection needs attention':'Connecting to Tesco…'}</h1>
   {state==='connecting'&&<p>Checking your Tesco connection…</p>}
-  {state==='waiting'&&<p>Complete Tesco sign-in if prompted. This page will close automatically as soon as Tesco responds.</p>}
+  {state==='waiting'&&<p>Complete Tesco sign-in in Chrome if prompted. The calendar will save the connection automatically. No AWS sign-in is needed.</p>}
   {error&&<p role="status">{error}</p>}
   {state==='failed'&&<button onClick={retry}>Try again</button>}
   <p><Link href={typeof window==='undefined'?'/basket':safeReturnPath()}>Return to Shopping Chalkboard</Link></p>

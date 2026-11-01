@@ -1,16 +1,22 @@
-# Automatic Tesco helper startup on macOS
+# Tesco helper startup on macOS
 
-The Tesco helper can run as a per-user macOS LaunchAgent. It starts when you log in and runs without a Terminal window. It is not a cloud service: the Mac must be awake, logged in, and have valid AWS credentials.
+The per-user LaunchAgent starts the browser helper when you log into your Mac. The Mac must be awake with Google Chrome and the local browser driver installed. **No AWS CLI/profile/login is required.**
 
-## Install
+## Update or install
 
-1. Stop the existing manual helper in Terminal with Ctrl+C. If it was suspended with Ctrl+Z, run `jobs -l`, resume it with `fg %N`, then Ctrl+C; alternatively stop its Node PID.
-2. Update your checkout: `cd ~/e-calendar && git pull`.
-3. Ensure dependencies are installed: `npm install` and `npm install --no-save playwright` if needed.
-4. Confirm the configured profile works: `AWS_PROFILE=oast-cottage aws sts get-caller-identity`. If credentials have expired, authenticate separately before proceeding.
-5. Run `zsh scripts/install-tesco-launchagent.sh`.
+Stop any manually started old helper with Ctrl+C, then:
 
-The installer uses the current Node.js executable, absolute project directory, `AWS_PROFILE=oast-cottage`, and region `eu-north-1`. It writes a LaunchAgent at `~/Library/LaunchAgents/uk.co.escapeaway.ecalendar.tesco-helper.plist` and logs under `~/Library/Logs/e-calendar/`.
+```sh
+cd ~/e-calendar
+git pull
+npm install
+npm install --no-save playwright
+zsh scripts/install-tesco-launchagent.sh
+```
+
+The installer replaces/restarts `uk.co.escapeaway.ecalendar.tesco-helper` using the current Node executable and project directory. It no longer sets `AWS_PROFILE` or `AWS_REGION`. It does not modify or renew your existing AWS login.
+
+Open Reconnect Tesco in the signed-in calendar once Amplify has deployed the update. Helper v2 handles only Tesco browser authentication. The hosted app owns reading/writing Secrets Manager. See [the reconnect design](tesco-reconnect.md) for the handoff and server permissions.
 
 ## Verify
 
@@ -19,7 +25,7 @@ launchctl print gui/$(id -u)/uk.co.escapeaway.ecalendar.tesco-helper
 tail -n 30 ~/Library/Logs/e-calendar/tesco-helper.log
 ```
 
-Look for the line `Tesco local helper listening on http://127.0.0.1:47831`. Then use the calendar's Reconnect Tesco button. If the browser blocks the local request or interactive Tesco authentication cannot work in the LaunchAgent context, use the manual Terminal command instead. A LaunchAgent does not guarantee Chrome login prompts will appear in the foreground.
+Look for `Tesco helper v2` and `no local AWS login required`. The app refuses to start older helpers. A LaunchAgent cannot remove Tesco's own occasional login requirements or browser local-network restrictions.
 
 ## Remove
 
@@ -27,4 +33,4 @@ Look for the line `Tesco local helper listening on http://127.0.0.1:47831`. Then
 zsh scripts/uninstall-tesco-launchagent.sh
 ```
 
-AWS CLI login may still expire. The helper does not automatically refresh AWS authentication. Keep the loopback listener private; do not expose the port.
+Keep port 47831 on loopback; do not expose or forward it.

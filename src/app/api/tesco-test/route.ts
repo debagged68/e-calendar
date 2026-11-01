@@ -165,7 +165,7 @@ function failure(e:unknown){
  if(name==='ResourceNotFoundException')return reply({error:'Tesco secret not found. Check AWS region and secret name.'},503);
  if(name==='AccessDeniedException'||name==='UnrecognizedClientException'||name==='CredentialsProviderError')return reply({error:'Amplify server lacks permission to read the Tesco secret. Configure its IAM compute role.'},503);
  if(msg==='NOT_CONFIGURED')return reply({error:'Tesco session not configured in AWS Amplify.'},503);
- if(msg==='EXPIRED'||name==='AuthExpiredError')return reply({error:'Tesco session expired. Reconnect on your Mac and update the AWS session.'},401);
+ if(msg==='EXPIRED'||name==='AuthExpiredError')return reply({error:'Tesco session expired. Use Reconnect Tesco in Family Calendar. No Mac AWS login is needed.'},401);
  if(msg==='INVALID_SESSION')return reply({error:'Tesco session configuration invalid.'},503);
  console.error('Tesco hosted test error',name);
  return reply({error:name==='ItemUnavailableError'?'Product unavailable for your Tesco basket':name==='LineRejectedError'?'Tesco rejected the basket update.':name==='RateLimitedError'?'Tesco rate limit reached.':'Tesco request failed ('+name+').'},502);

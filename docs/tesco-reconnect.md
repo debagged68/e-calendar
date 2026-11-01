@@ -1,37 +1,48 @@
-# Tesco browser reconnection — Mac and Windows
+# Tesco reconnect without a Mac AWS login
 
-This is the first working implementation of **browser-assisted** Tesco renewal. It is not unattended AWS renewal: a real Chrome browser runs on either user's laptop. AWS hosts the shared calendar and stores the resulting session.
+Sign into Family Calendar normally. Reconnecting Tesco no longer reads AWS credentials, an AWS profile, or an AWS login on your computer.
 
-## One-time setup on each laptop
-1. Install Node.js 20+ and Google Chrome.
-2. Clone this repository and run `npm install`.
-3. Install the optional local browser driver: `npm install --no-save playwright`.
-4. Configure AWS CLI access (`aws configure sso` then `aws sso login --profile YOUR_PROFILE`, or another secure AWS credential provider). Use an IAM role restricted to `secretsmanager:GetSecretValue` and `secretsmanager:PutSecretValue` for **only** `e-calendar/tesco-session` in `eu-north-1`. Do not give users general AWS admin rights.
-5. Set `AWS_PROFILE` to the configured profile if required. No Tesco password or AWS keys should be put in the repository.
+## What happens
 
-## Connect / renew
+1. The calendar checks the live Tesco connection. If it works, there is nothing to renew.
+2. The signed-in calendar checks that its hosted server can read the shared secret.
+3. The calendar checks for helper protocol 2. It refuses to start older helpers that still require local AWS credentials.
+4. The local helper renews the persistent Tesco Chrome profile. If Tesco needs sign-in, Chrome opens the normal Tesco page and waits for the session; no Terminal Enter prompt is required by the background helper.
+5. A short-lived, nonce-bound result is handed to the approved calendar origin, then sent by authenticated POST to `/api/tesco-session`.
+6. The server verifies the user, validates the session using the shared validator, checks Tesco with a read-only favourites request, then writes the secret using the server's runtime AWS credentials. It never selects a secret ID from browser input. The handoff ID is the AWS idempotency token.
+7. The calendar acknowledges the handoff and verifies the live basket before returning to shopping. Both Mac and iPhone then use the same server-side Tesco session.
+
+This removes the **AWS renewal** dependency. Tesco browser authentication still runs on the Mac; iPhone-only Tesco renewal is separate work.
+
+## One-time helper update
+
+On your Mac, leave the expired AWS login untouched. Run:
+
 ```sh
-npm run tesco:connect
-```
-The helper first tries refreshing the saved AWS session in a real Chrome window; if renewal fails it opens Tesco's normal sign-in. On success it writes the fresh session to AWS Secrets Manager. Both calendar users share the renewed Tesco session.
-
-To force an interactive sign-in:
-```sh
-npm run tesco:connect -- login
+cd ~/e-calendar
+git pull
+npm install
+npm install --no-save playwright
+zsh scripts/install-tesco-launchagent.sh
 ```
 
-## Security and limitations
-- Never paste Tesco cookies, session JSON, passwords or AWS credentials into chat, logs or GitHub.
-- The helper uses an in-memory token store. Basketeer's Chrome backend may retain its browser profile locally; protect the laptop account.
-- AWS credentials must be configured **once per laptop**. This is a bridge implementation, not yet the requested one-click calendar web UI.
-- When both laptops are off, no browser can refresh Tesco. The session may expire after roughly an hour. Either user can renew when needed.
-- Grocery capture remains Tesco-independent. Matching remains a separate user-initiated operation.
-- The helper does not touch the Tesco basket or product matching logic.
-- If `TESCO_SESSION_B64` is configured in Amplify, the application prefers that stale environment variable over Secrets Manager. **Remove that override** (after checking the deployment configuration), otherwise updates to Secrets Manager will not take effect.
-- Test on both operating systems and verify Amplify before declaring production-ready.
+The existing LaunchAgent is replaced/restarted without AWS environment settings. If a manually started helper already owns port 47831, stop that old process with Ctrl+C first. Reload the calendar's Reconnect Tesco page after Amplify deploys the new commit. An old helper produces an update message rather than attempting an AWS login.
 
-## In-calendar expiry guidance
-The calendar now detects a session-expired matching response and offers a **Reconnect Tesco** link to `/tesco-reconnect`. This page gives local Mac/Windows instructions; it does **not** claim to trigger Chrome automatically. An installed/running local companion service would be required for genuine one-click browser handoff, with a separately designed authentication and CSRF-safe protocol. Do not expose a public endpoint that accepts arbitrary Tesco session data.
+For a foreground helper, use `npm run tesco:helper`. The older `npm run tesco:connect` command is now an alias for that same helper, rather than a separate AWS-writing script.
 
-## One-click reconnection (local companion)
-After installing the existing dependencies and Playwright, run `git pull`, then `AWS_PROFILE=oast-cottage npm run tesco:helper` on the Mac (or configure an equivalent AWS profile on Windows). Leave the process running or set it to launch on user login. Visit `/tesco-reconnect` in the deployed calendar and click **Reconnect Tesco**. The calendar sends only an empty request to `http://127.0.0.1:47831/reconnect`; the local process runs the existing Chrome refresh script and saves to AWS Secrets Manager. Chrome may still ask you to sign in, and the Terminal may still ask you to press Enter. A browser with local-network protections may block the request; use the manual command as fallback. AWS CLI credentials must remain valid; if expired, re-run `aws login --profile oast-cottage`. This is one-click *initiation*, not unattended login, and requires a running local companion. The helper binds loopback only and accepts POST from the approved deployed origin or local development origin, checks Host and Content-Type, and does not expose session contents. Do not forward the port to a network or expose it publicly.
+## Server configuration
+
+Amplify's **compute role** (not the Mac's AWS CLI profile) needs `secretsmanager:GetSecretValue` and `secretsmanager:PutSecretValue` for the existing `e-calendar/tesco-session` secret in `eu-north-1`, or the server-side `TESCO_SECRET_ID` / `AWS_REGION` configuration. Add no AWS access keys to the browser or helper. Remove any old `TESCO_SESSION_B64` override: it would hide newly saved sessions and is therefore reported as a server configuration issue.
+
+The server role's live write permission cannot be inferred from successful read access. If publishing fails, the calendar reports a server configuration issue and explicitly says not to renew the Mac AWS login. Fixing an IAM permission is one-time server administration, not a recurring user login.
+
+## Security and verification
+
+- Helper binds only to loopback; exact Host and approved Origin checks remain mandatory.
+- Session result requires the originating approved site and a random handoff ID, is accessible for at most two minutes after renewal, and is cleared after acknowledgement. Session data is never in URLs, logs or disk exports.
+- Helper does not receive AWS credentials or the existing AWS secret. It only handles the newly browser-minted Tesco session.
+- Server requires a verified Family Calendar JWT, caps input size, validates the session and reads Tesco before changing the fixed secret.
+- No basket mutation is used to test authentication.
+- Tests cover a deliberately invalid local AWS profile, helper access controls/expiry, old-helper detection, browser handoff, unauthorised input, server IAM failure, and existing grocery/transfer behaviour.
+
+Manual acceptance: with your local AWS login still expired, reconnect from the updated calendar and confirm product matching works. Until that succeeds against the deployed server and your Chrome profile, the live end-to-end result remains unconfirmed.

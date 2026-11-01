@@ -5,14 +5,13 @@ import {stdin as input,stdout as output} from 'node:process';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {sessionFromCookies} from 'basketeer';
+import {validateTescoSession} from '../src/lib/tesco-session-validation.mjs';
 
 const loginUrl='https://www.tesco.com/account/login';
 const groceriesUrl='https://www.tesco.com/groceries/';
 const refreshUrl='https://www.tesco.com/account/auth/en-GB/refresh-token?soft-refresh=false&from=https%3A%2F%2Fwww.tesco.com%2Fshop%2Fen-GB%2Flanding%2Fgroceries';
 const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
-const isFresh=(session)=>Boolean(session?.accessTokenExpiry && session.accessTokenExpiry>Date.now()+60_000);
 export async function interactiveTescoLogin(){
- if(!input.isTTY)throw Error('Interactive Tesco login requires a Terminal window.');
  const {chromium}=await import('playwright');
  const context=await chromium.launchPersistentContext(join(homedir(),'.basketeer','chrome-profile'),{
   channel:'chrome',headless:false,locale:'en-GB',timezoneId:'Europe/London',
@@ -22,16 +21,15 @@ export async function interactiveTescoLogin(){
  try{
   const page=context.pages()[0]||await context.newPage();
   await page.goto(loginUrl,{waitUntil:'domcontentloaded'});
-  const rl=createInterface({input,output});
-  try{await rl.question('Sign in to Tesco in Chrome, then press Enter here once the groceries home page appears.\n');}
-  finally{rl.close()}
+  if(input.isTTY){const rl=createInterface({input,output});try{await rl.question('Sign in to Tesco in Chrome, then press Enter here once the groceries home page appears.\n')}finally{rl.close()}}
   const harvest=async()=>{
    const cookies=await context.cookies();
-   try{const candidate=sessionFromCookies(cookies);return isFresh(candidate)?candidate:null}
+   try{return validateTescoSession(sessionFromCookies(cookies))}
    catch{return null}
   };
   // Tesco may set OAuth cookies only after its groceries redirect or token refresh.
   let session=await harvest();
+  if(!input.isTTY){for(let i=0;i<240&&!session;i++){await wait(1000);session=await harvest()}}
   if(!session){
    console.log('Tesco login accepted; waiting for the authenticated session cookies…');
    await page.goto(groceriesUrl,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{});

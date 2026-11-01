@@ -16,7 +16,7 @@ LOG_DIR="$HOME/Library/Logs/e-calendar"
 PLIST="$AGENTS_DIR/$LABEL.plist"
 mkdir -p "$AGENTS_DIR" "$LOG_DIR"
 # Use an absolute node path and project working directory; launchd has a minimal PATH.
-# The AWS CLI profile must already have working credentials.
+# AWS credentials are managed only by the hosted app, never by this helper.
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -31,8 +31,6 @@ cat > "$PLIST" <<EOF
   <key>WorkingDirectory</key><string>$PROJECT_DIR</string>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>AWS_PROFILE</key><string>oast-cottage</string>
-    <key>AWS_REGION</key><string>eu-north-1</string>
     <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>RunAtLoad</key><true/>

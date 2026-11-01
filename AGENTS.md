@@ -17,3 +17,7 @@ Check both entry points when changing this workflow. Never claim that duplicatio
 - `src/lib/server/groq.ts` owns chat transport. Classification and extraction remain distinct operations within the one Quick Action workflow.
 - Retired integration URLs return HTTP 410 through `supabase/functions/_shared/retired.ts`. Do not restore the removed Microsoft sender or per-user Hotmail implementation. Use Brevo invitations and shared ICS feeds.
 - Historical migrations are deployment history, not dead application code. Do not delete them or stored user data as a source-cleanup shortcut.
+
+## Tesco reconnect: AWS belongs to the server
+
+The Mac helper must never load the AWS SDK, access Secrets Manager, require `AWS_PROFILE`, or ask for `aws login`. It only renews Tesco's persistent Chrome session. The signed-in calendar relays its nonce-bound result to `/api/tesco-session`, which verifies the user and Tesco session before saving through `src/lib/server/tesco-session.ts`. Shared format validation lives in `src/lib/tesco-session-validation.mjs`; do not copy it into entry points. Refuse old helper protocols before triggering them. Do not claim that removing Mac AWS authentication solves iPhone-only Tesco browser renewal.

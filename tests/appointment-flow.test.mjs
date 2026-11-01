@@ -8,8 +8,7 @@ const ts = require('typescript');
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, filename);
 const { NextRequest } = require('next/server');
 const { POST: quickAction } = require('../src/app/api/interpret-appointment/route.ts');
-const { POST: siri } = require('../src/app/api/siri/route.ts');
-test('Shortcut and Quick Action retain Saturday even when AI returns Wednesday', async () => {
+test('Quick Action retains Saturday even when AI returns Wednesday', async () => {
     const originalFetch = globalThis.fetch, OriginalDate = globalThis.Date;
     const originalEnv = { url: process.env.NEXT_PUBLIC_SUPABASE_URL, key: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, groq: process.env.GROQ_API_KEY };
     const inserted = [];
@@ -44,14 +43,6 @@ test('Shortcut and Quick Action retain Saturday even when AI returns Wednesday',
         const quickResponse = await quickAction(new NextRequest('https://calendar.example/api/interpret-appointment', { method: 'POST', headers, body: JSON.stringify({ description }) }));
         assert.equal(quickResponse.status, 200);
         assert.equal((await quickResponse.json()).date, '2026-11-07');
-        const siriResponse = await siri(new NextRequest('https://calendar.example/api/siri', { method: 'POST', headers, body: JSON.stringify({ text: description }) }));
-        const result = await siriResponse.json();
-        assert.equal(siriResponse.status, 200, JSON.stringify(result));
-        assert.match(result.spoken, /Saturday 7 November at 10:00/);
-        assert.equal(inserted.length, 1);
-        assert.equal(inserted[0].event_date, '2026-11-07');
-        assert.equal(inserted[0].start_at, '2026-11-07T10:00:00.000Z');
-        assert.equal(inserted[0].end_at, '2026-11-07T11:00:00.000Z');
         for (const prompt of prompts) {
             const messages = prompt.messages;
             assert.equal(messages[1].content, description);

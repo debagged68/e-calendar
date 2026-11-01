@@ -21,3 +21,7 @@ Check both entry points when changing this workflow. Never claim that duplicatio
 ## Tesco reconnect: AWS belongs to the server
 
 The Mac helper must never load the AWS SDK, access Secrets Manager, require `AWS_PROFILE`, or ask for `aws login`. It only renews Tesco's persistent Chrome session. The signed-in calendar relays its nonce-bound result to `/api/tesco-session`, which verifies the user and Tesco session before saving through `src/lib/server/tesco-session.ts`. Shared format validation lives in `src/lib/tesco-session-validation.mjs`; do not copy it into entry points. Refuse old helper protocols before triggering them. Do not claim that removing Mac AWS authentication solves iPhone-only Tesco browser renewal.
+
+## Personal invitation settings
+
+`src/lib/invitation-settings.ts` owns browser access to each user's `public.user_settings` row. Never restore a household-wide invitation destination or read another person's settings to supply a default. The existing `calendar_private.queue_invite()` trigger selects the event creator's saved recipient, covering manual events, Quick Action, Siri and newly created Tesco delivery events without separate email workflows. Family events, calendar feeds/photos, groceries and the Tesco account remain shared.

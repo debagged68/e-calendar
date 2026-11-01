@@ -1,8 +1,8 @@
 # Family invitations through an independent email service
 
-The default invitation email in Settings is the **recipient**. It may be a personal Hotmail address. E-calendar sends the invitation through Brevo; no Microsoft login, Entra registration or mailbox access is needed.
+Your invitation email in Settings is your personal **recipient**. It may be a personal Hotmail address. E-calendar sends the invitation through Brevo; no Microsoft login, Entra registration or mailbox access is needed.
 
-Every new family event, including Quick Action, Siri and Tesco-created events, queues an invitation when the default email is set. Blank disables invitations. Changing the default affects future events, not existing events.
+Each new family event uses its creator’s saved invitation email, including events created manually, through Quick Action/Siri, or by Tesco delivery lookup. Each person signs into their own account and sets their recipient in Settings. Blank disables that person’s invitations. Changing your address affects only your future events; it does not change another person’s address or existing queued invitations. The Brevo sender remains shared.
 
 ## One-time sender setup
 
@@ -17,14 +17,14 @@ Every new family event, including Quick Action, Siri and Tesco-created events, q
    | `CALENDAR_FROM_EMAIL` | The sender email you verified in Brevo |
 
    These belong in Supabase Edge Function Secrets, not Amplify or calendar Settings. Never put the key in source code, a public environment variable or chat.
-5. In e-calendar, open **Settings → Calendar invitations**, retain the desired default recipient and choose **Refresh email status**. “Email service configured” means the server has both settings; it does not verify account approval, sender verification or delivery.
+5. In e-calendar, open **Settings → Calendar invitations**, save your desired personal recipient and choose **Refresh email status**. “Email service configured” means the server has both settings; it does not verify account approval, sender verification or delivery.
 6. Create a family event. Check the invitation email in Hotmail, including Junk, and open/accept `invitation.ics` to add it to the calendar. The appearance of invitation/accept controls varies by mail client and sender identity rewriting. Check Brevo's transactional logs if it does not arrive. No real delivery is claimed until this test succeeds.
 
 The free-address sender substitution is controlled by Brevo. The calendar attachment retains the configured sender as its organiser; Outlook handling of a rewritten sender must be checked with a real email. This integration does not promise automatic acceptance or native invitation buttons in every client.
 
 ## Delivery and retries
 
-The `calendar-invites` Edge Function accepts an authenticated user GET for non-secret setup status. Its POST worker requires the existing private worker token. Sender credentials never reach the browser. The database trigger and scheduled worker continue to cover every new family event; no new database schema is required.
+The `calendar-invites` Edge Function accepts an authenticated user GET for non-secret setup status. Its POST worker requires the existing private worker token. Sender credentials never reach the browser. The database trigger reads `public.user_settings` by the new event’s `created_by`. RLS limits preference reads/writes to their owner. The existing queue and scheduled worker remain shared; no parallel email-sending implementation is used.
 
 Missing configuration leaves invitations pending without using delivery attempts. Brevo receives a UTF-8 base64 `invitation.ics` attachment with `METHOD:REQUEST`, a stable event UID and the stored event dates/times. API HTTP 201 with a message ID records provider acceptance as “Invite sent”; it does not mean inbox delivery or acceptance by the recipient.
 

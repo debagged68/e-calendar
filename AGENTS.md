@@ -25,3 +25,7 @@ The Mac helper must never load the AWS SDK, access Secrets Manager, require `AWS
 ## Personal invitation settings
 
 `src/lib/invitation-settings.ts` owns browser access to each user's `public.user_settings` row. Never restore a household-wide invitation destination or read another person's settings to supply a default. The existing `calendar_private.queue_invite()` trigger selects the event creator's saved recipient, covering manual events, Quick Action, Siri and newly created Tesco delivery events without separate email workflows. Family events, calendar feeds/photos, groceries and the Tesco account remain shared.
+
+## Shared to-do workflow
+
+`src/lib/todos.ts` owns task validation and persistence; `use-todos.ts` owns the list/count refresh lifecycle. Do not recreate task writes in UI entry points. Quick Action leading `add` always means groceries; otherwise an event requires both date and time, and missing values mean a to-do. `src/lib/server/appointment.ts` owns extraction for both interpretation endpoints. Reuse returned drafts rather than invoking AI again. Task conversion opens `/add?task=...` and uses the existing `interpret`/`save`; `public.save_quick_event` atomically creates the event and completes the task under caller RLS, and the existing invitation trigger chooses the converting user's recipient. Never introduce a separate conversion/Siri mail sender or event creation workflow.

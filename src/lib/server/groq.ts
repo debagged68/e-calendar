@@ -1,4 +1,4 @@
-// Classification and appointment extraction have distinct prompts, but one transport contract.
+// Grocery extraction and appointment extraction share one chat transport contract.
 export function groqCompletion(apiKey:string,system:string,description:string){
  return fetch('https://api.groq.com/openai/v1/chat/completions',{
   method:'POST',headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json'},

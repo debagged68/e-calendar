@@ -1,0 +1,4 @@
+// Explicit household routing rules. Missing date/time must never be supplied by AI defaults.
+export function startsWithAdd(text:string){return /^add\b/i.test(text.trim())}
+export function hasDate(text:string){return /\b(today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}[/.]\d{1,2}(?:[/.]\d{2,4})?\b|\b(?:in|next)\s+(?:(?:\d+|one|two|three|a)\s+)?(?:days?|weeks?)\b|\b(?:the\s+)?\d{1,2}(?:st|nd|rd|th)\b/i.test(text)}
+export function hasTime(text:string){return /\b(?:[01]?\d|2[0-3]):[0-5]\d\s*(?:a\.?m\.?|p\.?m\.?)?\b|\b\d{1,2}\s*(?:a\.?m\.?|p\.?m\.?|o['’]?clock)\b|\b(?:at|@)\s*(?:[01]?\d|2[0-3]|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b|\b(noon|midday|midnight)\b/i.test(text)}

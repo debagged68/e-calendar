@@ -155,3 +155,7 @@ body{background:#e9e7e0;color:#29352e;font-family:Arial,Helvetica,sans-serif}
 .quick-action-links{margin-top:10px!important;gap:8px!important;flex-wrap:nowrap!important}
 .quick-action-links a{flex:1;text-align:center;font-size:13px!important;padding:10px 4px!important;margin-bottom:0!important}
 }
+
+/* Keep Shopping Whiteboard and To-do side by side in the wall display. */
+@media(min-width:851px){.paper-shell .daily-strip,.paper-shell.fit-screen .daily-strip{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(160px,.6fr) minmax(150px,.55fr)}}
+@media(min-width:651px) and (max-width:850px){.paper-shell .daily-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}

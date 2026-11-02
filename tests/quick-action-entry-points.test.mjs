@@ -13,13 +13,13 @@ function text(node){if(node==null||typeof node==='boolean')return '';if(typeof n
 function find(node,predicate){if(!node||typeof node!=='object')return null;if(Array.isArray(node)){for(const child of node){const found=find(child,predicate);if(found)return found}return null}if(predicate(node))return node;return find(node.props?.children,predicate)}
 // Execute the real Quick Action component with controlled React hooks and mocked I/O.
 // This exercises its actual event handlers/effects without an external account or browser.
-function mount({automatic=false,description=phrase,intent='appointment',event=draft,signedIn=true,emptyBasket=false}={}){
+function mount({automatic=false,description=phrase,intent='appointment',event=draft,signedIn=true,emptyBasket=false,task=null,rpcError=null,embedded=false}={}){
  const previous={window:globalThis.window,fetch:globalThis.fetch};
  const user={id:'test-user'},slots=[],effects=[],writes=[],requests=[],items=[];
  let listExists=!emptyBasket,currentUser=signedIn?user:null,authCallback,releaseLogin,hook=0,dirty=true,tree;
- const location={search:automatic?'?'+new URLSearchParams({text:description,autorun:'1'}):''};
+ const location={search:task?'?task='+task.id:automatic?'?'+new URLSearchParams({text:description,autorun:'1'}):''};
  globalThis.window={location,history:{replaceState(_state,_title,url){location.search=new URL(url,'https://calendar.example').search}}};
- globalThis.fetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});if(url==='/api/interpret-entry')return Response.json({intent,items:[{name:'apples',quantity:2}]});if(url==='/api/interpret-appointment')return Response.json(event);throw Error('Unexpected endpoint '+url)};
+ globalThis.fetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});if(url==='/api/interpret-entry')return Response.json({intent,items:[{name:'apples',quantity:2}],...(embedded?{appointment:event}:{})});if(url==='/api/interpret-appointment')return Response.json(event);throw Error('Unexpected endpoint '+url)};
  const react={
   useState(initial){const index=hook++;if(!(index in slots))slots[index]=typeof initial==='function'?initial():initial;return [slots[index],value=>{const next=typeof value==='function'?value(slots[index]):value;if(!Object.is(next,slots[index])){slots[index]=next;dirty=true}}]},
   useRef(initial){const index=hook++;return slots[index]??(slots[index]={current:initial})},
@@ -31,10 +31,10 @@ function mount({automatic=false,description=phrase,intent='appointment',event=dr
   then(resolve,reject){return Promise.resolve().then(()=>{
    if(table==='grocery_lists'&&query.operation==='insert')listExists=true;
    if(query.operation!=='select'){writes.push({table,operation:query.operation,payload:query.payload});if(table==='grocery_items'&&query.operation==='insert')items.push({id:'item',...query.payload});if(table==='grocery_items'&&query.operation==='update')Object.assign(items.find(item=>item.id===query.filters.id),query.payload)}
-   return {error:null,data:table==='grocery_lists'?(query.operation==='insert'?{id:'list'}:listExists?[{id:'list',event_id:null}]:[]):table==='grocery_items'?(query.single?items.at(-1):items):[]};
+   return {error:null,data:table==='todo_items'?(query.single?task:[]):table==='grocery_lists'?(query.operation==='insert'?{id:'list'}:listExists?[{id:'list',event_id:null}]:[]):table==='grocery_items'?(query.single?items.at(-1):items):[]};
   }).then(resolve,reject)}
  };return chain}
- const db={from,auth:{getUser:async()=>({data:{user:currentUser}}),getSession:async()=>({data:{session:currentUser?{access_token:'test-token'}:null}}),onAuthStateChange(callback){authCallback=callback;return {data:{subscription:{unsubscribe(){}}}}},async signInWithPassword(){currentUser=user;authCallback('SIGNED_IN',{user});await new Promise(resolve=>releaseLogin=resolve);return {error:null}}}};
+ const db={from,rpc:async(name,p)=>{assert.equal(name,'save_quick_event');if(rpcError)return {error:{message:rpcError}};writes.push({table:'family_events',operation:'insert',payload:{title:p.p_title,event_date:p.p_event_date,start_at:p.p_start_at,end_at:p.p_end_at,important:p.p_important,created_by:user.id},taskId:p.p_task_id});return {error:null,data:'event-id'}},auth:{getUser:async()=>({data:{user:currentUser}}),getSession:async()=>({data:{session:currentUser?{access_token:'test-token'}:null}}),onAuthStateChange(callback){authCallback=callback;return {data:{subscription:{unsubscribe(){}}}}},async signInWithPassword(){currentUser=user;authCallback('SIGNED_IN',{user});await new Promise(resolve=>releaseLogin=resolve);return {error:null}}}};
  const load=Module._load;
  Module._load=function(name,...args){if(name==='react')return react;if(name==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};if(name==='@supabase/supabase-js')return {createClient:()=>db};return load.call(this,name,...args)};
  let Component;
@@ -42,6 +42,7 @@ function mount({automatic=false,description=phrase,intent='appointment',event=dr
  function render(){hook=0;dirty=false;tree=Component();const pending=effects.splice(0);for(const effect of pending)effect()}
  async function flush(){let idle=0;for(let i=0;i<50;i++){if(dirty)render();await new Promise(resolve=>setImmediate(resolve));if(!dirty&&!effects.length){if(++idle===2)return}else idle=0}throw Error('Component did not settle')}
  return {writes,requests,location,flush,get tree(){return tree},
+  async field(type,value){const input=find(tree,node=>node.type==='input'&&node.props.type===type);assert.ok(input);input.props.onChange({target:{value}});await flush()},
   async enter(value){find(tree,node=>node.type==='textarea').props.onChange({target:{value}});await flush()},
   async click(label){const button=find(tree,node=>node.type==='button'&&text(node)===label);assert.ok(button,'Missing button '+label);button.props.onClick();await flush()},
   async beginLogin(){find(tree,node=>node.type==='form').props.onSubmit({preventDefault(){}});await flush()},
@@ -80,4 +81,18 @@ test.after(()=>{for(const [key,value] of Object.entries({NEXT_PUBLIC_SUPABASE_UR
 
 test('automatic grocery submission waits for initial basket creation',async()=>{
  const app=mount({automatic:true,intent:'groceries',description:'Add 2 apples',emptyBasket:true});try{await app.flush();assert.equal(app.writes.filter(x=>x.table==='grocery_lists').length,1);assert.equal(app.writes.filter(x=>x.table==='grocery_items').length,1)}finally{app.close()}
+});
+
+test('manual and Shortcut to-do entries use one shared task save and never create an event',async()=>{
+ for(const automatic of [false,true]){const app=mount({automatic,intent:'todo',description:'Call the plumber Wednesday'});try{await app.flush();if(!automatic){await app.enter('Call the plumber Wednesday');await app.click('Continue')}assert.equal(app.writes.filter(x=>x.table==='family_events').length,0);assert.deepEqual(app.writes.filter(x=>x.table==='todo_items').map(x=>x.payload),[{title:'Call the plumber Wednesday',created_by:'test-user',due_date:null}]);assert.match(text(app.tree),/Added to your to-do list/)}finally{app.close()}}
+});
+test('embedded appointment extraction is reused without a second AI request',async()=>{
+ const app=mount({automatic:true,embedded:true});try{await app.flush();assert.deepEqual(app.requests.map(x=>x.url),['/api/interpret-entry']);assert.equal(app.writes.filter(x=>x.table==='family_events').length,1)}finally{app.close()}
+});
+const task={id:'00000000-0000-4000-8000-000000000010',title:'Call plumber',due_date:null,completed_at:null,event_id:null};
+test('task conversion requires missing date/time and uses the same event save with its task ID',async()=>{
+ const app=mount({task,event:{title:'Call plumber',date:'',time:'',endDate:'',endTime:''}});try{await app.flush();assert.match(text(app.tree),/Convert task to calendar event/);await app.click('ADD TO CALENDAR');assert.equal(app.writes.filter(x=>x.table==='family_events').length,0);await app.field('date','2026-11-07');await app.field('time','10:00');await app.click('ADD TO CALENDAR');const events=app.writes.filter(x=>x.table==='family_events');assert.equal(events.length,1);assert.equal(events[0].taskId,task.id);assert.equal(app.requests.some(x=>x.url==='/api/interpret-entry'),false);assert.equal(app.writes.filter(x=>x.table==='todo_items').length,0,'Task completion belongs to the atomic event transaction');}finally{app.close()}
+});
+test('failed conversion keeps the task ID and displays the save error',async()=>{
+ const app=mount({task,rpcError:'Could not save event'});try{await app.flush();await app.click('ADD TO CALENDAR');assert.match(text(app.tree),/Could not save event/);assert.match(text(app.tree),/Convert task to calendar event/);assert.equal(app.writes.length,0)}finally{app.close()}
 });
